@@ -16,20 +16,31 @@ from core.items import (DEMO_NAME, is_sprite, new_animation_item, new_text_item,
 from .widgets import Debouncer, LabeledSlider, heading, led, muted, section
 
 
-def _text_dialog(app, title: str, value: str, action: str, on_ok, hint: str = ""):
+def _text_dialog(app, title: str, value: str, action: str, on_ok, hint: str = "", after=None):
+    """on_ok(text) returns an error message or None. `after` runs once the dialog
+    has closed: navigate there, never inside on_ok, or the dialog stays behind
+    on the screen you came from."""
     field = ft.TextField(value=value, autofocus=True, hint_text=hint, max_length=32,
                          on_submit=lambda e: done(e))
+
+    succeeded = []
 
     def done(e):
         err = on_ok(field.value or "")
         if err:
             field.error = err
             field.update()
-        else:
-            app.page.pop_dialog()
+            return
+        succeeded.append(True)
+        app.page.pop_dialog()
+
+    def dismissed(e):
+        # Only now is the dialog really gone (it closes with an animation).
+        if succeeded and after:
+            after()
 
     app.page.show_dialog(ft.AlertDialog(
-        title=ft.Text(title), content=field,
+        title=ft.Text(title), content=field, on_dismiss=dismissed,
         actions=[ft.TextButton("Cancel", on_click=lambda e: app.page.pop_dialog()),
                  ft.FilledButton(action, on_click=done)]))
 
@@ -116,12 +127,14 @@ class TextsTab:
         self.app.run(self.app.device.play_group, g["name"], g["items"], ok=f"Playing “{g['name']}”")
 
     def _new_group(self, e):
-        def ok(name):
-            g = self.app.library.add_group(name or "New group")
-            self.app.refresh()
-            self.open(g)
+        created = []
 
-        _text_dialog(self.app, "New group", "", "Create", ok, hint="e.g. Kitchen")
+        def ok(name):
+            created.append(self.app.library.add_group(name or "New group"))
+            self.app.refresh()
+
+        _text_dialog(self.app, "New group", "", "Create", ok, hint="e.g. Kitchen",
+                     after=lambda: self.open(created[0]))
 
     def rename(self, g):
         old = g["name"]
