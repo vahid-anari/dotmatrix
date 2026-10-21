@@ -30,14 +30,16 @@ python tools/fake_device.py                       # from the repo root
 DM_HOST=127.0.0.1:8080 flet run src/main.py       # or type 127.0.0.1:8080 in Settings
 ```
 
-## Build for Android
+## Install on the phone
 
-```sh
-cd app
-flet build apk
-```
+GitHub builds the APK for you (`.github/workflows/build.yml`):
 
-The APK ends up in `app/build/apk/`. Copy it to the phone and install it. To update, build again with a higher `version` in `pyproject.toml` and install over the old one; your groups are kept.
+- After every push to `main`, the APK is under **Actions → the latest run → Artifacts**.
+- For a release, tag it: `git tag v0.1.0 && git push origin v0.1.0`. The APK and the firmware appear under **Releases**, where the phone can download and install them directly.
+
+Installing a newer version over the old one keeps your groups.
+
+To build locally instead: `cd app && flet build apk` (the APK ends up in `app/build/apk/`).
 
 ## Tests
 

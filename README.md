@@ -25,6 +25,10 @@ A 64×8 LED matrix (eight 8×8 MAX7219 modules) on an ESP32-C3, controlled over 
 | M4: More animations and text overlays | planned |
 | M5: Temperature/humidity, weather | planned |
 
+## Downloads
+
+Each tagged version (`v0.1.0`, …) has the Android app and the firmware under [Releases](../../releases), built by GitHub Actions.
+
 ## License
 
 MIT, see [LICENSE](LICENSE). Uses [MD_Parola](https://github.com/MajicDesigns/MD_Parola) and [MD_MAX72XX](https://github.com/MajicDesigns/MD_MAX72XX) (LGPL-2.1); the sprite data comes from the MD_Parola examples.
