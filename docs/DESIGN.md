@@ -35,6 +35,8 @@ A 64×8 LED matrix (eight 8×8 MAX7219 modules) driven by an ESP32-C3, controlle
 
 ## 3. Hardware
 
+Wiring diagram, parts and tips: [HARDWARE.md](HARDWARE.md).
+
 | Part | Detail |
 |---|---|
 | MCU | ESP32-C3 Super Mini |

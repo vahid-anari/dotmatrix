@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 520" width="920" height="520" font-family="Helvetica, Arial, sans-serif">
+  <title>Dot Matrix wiring: ESP32-C3 Super Mini to 8 chained MAX7219 (FC-16) modules</title>
+  <defs>
+    <pattern id="dots" width="8" height="8" patternUnits="userSpaceOnUse">
+      <rect width="8" height="8" fill="#151515"/>
+      <circle cx="4" cy="4" r="2.7" fill="#4a1712"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+  </defs>
+
+  <!-- White card, so it reads the same in GitHub's light and dark modes -->
+  <rect x="0" y="0" width="920" height="520" rx="14" fill="#ffffff"/>
+  <text x="30" y="40" font-size="20" font-weight="bold" fill="#1d2733">Wiring</text>
+  <text x="30" y="62" font-size="13" fill="#5a6876">Five wires. The display gets its 5 V from the ESP32 board, which gets it from USB.</text>
+
+  <!-- ===================== Display: 8 modules, input on the right ===================== -->
+  <g>
+    <rect x="22" y="142" width="530" height="80" rx="4" fill="#1e6e50"/>
+    <!-- modules 8 (left) .. 1 (right) -->
+    <rect x="30"  y="150" width="64" height="64" fill="url(#dots)"/>
+    <rect x="95"  y="150" width="64" height="64" fill="url(#dots)"/>
+    <rect x="160" y="150" width="64" height="64" fill="url(#dots)"/>
+    <rect x="225" y="150" width="64" height="64" fill="url(#dots)"/>
+    <rect x="290" y="150" width="64" height="64" fill="url(#dots)"/>
+    <rect x="355" y="150" width="64" height="64" fill="url(#dots)"/>
+    <rect x="420" y="150" width="64" height="64" fill="url(#dots)"/>
+    <rect x="485" y="150" width="64" height="64" fill="url(#dots)"/>
+    <!-- seam between the two 4-module boards -->
+    <line x1="289.5" y1="138" x2="289.5" y2="226" stroke="#ffffff" stroke-width="2" stroke-dasharray="4 3"/>
+    <g font-size="11" fill="#5a6876" text-anchor="middle">
+      <text x="62"  y="240">8</text><text x="127" y="240">7</text><text x="192" y="240">6</text><text x="257" y="240">5</text>
+      <text x="322" y="240">4</text><text x="387" y="240">3</text><text x="452" y="240">2</text><text x="517" y="240">1</text>
+    </g>
+    <text x="287" y="262" font-size="12" fill="#5a6876" text-anchor="middle">MAX7219 8×8 modules (FC-16 type), two boards of 4, chained: 64 × 8 LEDs</text>
+    <text x="160" y="128" font-size="11" fill="#5a6876" text-anchor="middle">board 2</text>
+    <text x="420" y="128" font-size="11" fill="#5a6876" text-anchor="middle">board 1</text>
+    <text x="289" y="128" font-size="11" fill="#5a6876" text-anchor="middle">joined: DOUT → DIN</text>
+
+    <!-- Input header at the right end (pins VCC GND DIN CS CLK) -->
+    <rect x="553" y="150" width="14" height="66" rx="2" fill="#2b2b2b"/>
+    <g fill="#d9b455">
+      <rect x="556" y="155" width="8" height="8"/><rect x="556" y="167" width="8" height="8"/>
+      <rect x="556" y="179" width="8" height="8"/><rect x="556" y="191" width="8" height="8"/>
+      <rect x="556" y="203" width="8" height="8"/>
+    </g>
+    <rect x="512" y="152" width="38" height="62" rx="3" fill="#ffffff" opacity="0.92"/>
+    <g font-size="10" fill="#1d2733" font-weight="bold" text-anchor="end">
+      <text x="547" y="163">VCC</text><text x="547" y="175">GND</text>
+      <text x="547" y="187">DIN</text><text x="547" y="199">CS</text><text x="547" y="211">CLK</text>
+    </g>
+    <text x="560" y="140" font-size="11" fill="#5a6876" text-anchor="middle">IN</text>
+  </g>
+
+  <!-- ===================== ESP32-C3 Super Mini (USB at the top) ===================== -->
+  <g>
+    <rect x="701" y="92" width="38" height="16" rx="5" fill="#9aa3ab"/>
+    <text x="720" y="84" font-size="11" fill="#5a6876" text-anchor="middle">USB-C</text>
+    <rect x="660" y="106" width="120" height="196" rx="6" fill="#1b3a6b"/>
+    <circle cx="720" cy="250" r="4" fill="#7fd1ff"/>
+    <text x="720" y="268" font-size="9" fill="#c9d6e8" text-anchor="middle">LED</text>
+    <text x="720" y="279" font-size="9" fill="#c9d6e8" text-anchor="middle">GPIO 8</text>
+    <text x="720" y="322" font-size="12" fill="#1d2733" text-anchor="middle" font-weight="bold">ESP32-C3 Super Mini</text>
+    <g fill="#d9b455"><circle cx="672" cy="130" r="5"/><circle cx="768" cy="130" r="5"/><circle cx="672" cy="152" r="5"/><circle cx="768" cy="152" r="5"/><circle cx="672" cy="174" r="5"/><circle cx="768" cy="174" r="5"/><circle cx="672" cy="196" r="5"/><circle cx="768" cy="196" r="5"/><circle cx="672" cy="218" r="5"/><circle cx="768" cy="218" r="5"/><circle cx="672" cy="240" r="5"/><circle cx="768" cy="240" r="5"/><circle cx="672" cy="262" r="5"/><circle cx="768" cy="262" r="5"/><circle cx="672" cy="284" r="5"/><circle cx="768" cy="284" r="5"/></g>
+    <g font-size="10" fill="#ffffff"><text x="682" y="134" font-weight="bold">5V</text><text x="682" y="156" font-weight="bold">G</text><text x="682" y="178" fill="#9fb0c8">3.3</text><text x="682" y="200" font-weight="bold">4</text><text x="682" y="222" fill="#9fb0c8">3</text><text x="682" y="244" fill="#9fb0c8">2</text><text x="682" y="266" fill="#9fb0c8">1</text><text x="682" y="288" fill="#9fb0c8">0</text></g>
+    <g font-size="10" fill="#ffffff" text-anchor="end"><text x="758" y="134" fill="#9fb0c8">5</text><text x="758" y="156" font-weight="bold">6</text><text x="758" y="178" font-weight="bold">7</text><text x="758" y="200" fill="#9fb0c8">8</text><text x="758" y="222" fill="#9fb0c8">9</text><text x="758" y="244" fill="#9fb0c8">10</text><text x="758" y="266" fill="#9fb0c8">20</text><text x="758" y="288" fill="#9fb0c8">21</text></g>
+  </g>
+
+  <!-- ===================== Wires ===================== -->
+  <g fill="none" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M564,159 H606 V130 H672" stroke="#d62828"/>
+    <path d="M564,171 H618 V152 H672" stroke="#222222"/>
+    <path d="M564,207 H660 V196 H672" stroke="#e8a317"/>
+    <path d="M564,183 H640 V72 H812 V152 H768" stroke="#2a9d4b"/>
+    <path d="M564,195 H652 V60 H828 V174 H768" stroke="#2f6fd6"/>
+  </g>
+  <g fill="#1d2733">
+    <circle cx="672" cy="130" r="2.5"/><circle cx="672" cy="152" r="2.5"/><circle cx="672" cy="196" r="2.5"/>
+    <circle cx="768" cy="152" r="2.5"/><circle cx="768" cy="174" r="2.5"/>
+  </g>
+
+  <!-- ===================== Legend ===================== -->
+  <g font-size="13" fill="#1d2733">
+    <rect x="30" y="370" width="22" height="5" fill="#d62828"/><text x="60" y="376">VCC → 5V</text>
+    <rect x="30" y="392" width="22" height="5" fill="#222222"/><text x="60" y="398">GND → G</text>
+    <rect x="30" y="414" width="22" height="5" fill="#2a9d4b"/><text x="60" y="420">DIN → GPIO 6 (SPI data, MOSI)</text>
+    <rect x="30" y="436" width="22" height="5" fill="#2f6fd6"/><text x="60" y="442">CS → GPIO 7 (chip select)</text>
+    <rect x="30" y="458" width="22" height="5" fill="#e8a317"/><text x="60" y="464">CLK → GPIO 4 (SPI clock, SCK)</text>
+  </g>
+  <g font-size="12" fill="#5a6876">
+    <text x="340" y="376">Power: a 5 V USB charger of 2 A or more, into the ESP32's USB-C.</text>
+    <text x="340" y="396">Optional: a 470–1000 µF capacitor across VCC and GND at the display.</text>
+    <text x="340" y="416">Pin labels follow the usual Super Mini layout; check the labels</text>
+    <text x="340" y="432">printed on your board before soldering.</text>
+    <text x="340" y="456">Pins are set in firmware/src/config.h.</text>
+  </g>
+  <text x="30" y="500" font-size="11" fill="#97a6b0">github.com/vahid-anari/dotmatrix</text>
+</svg>

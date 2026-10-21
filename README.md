@@ -12,12 +12,20 @@ A 64×8 LED matrix (eight 8×8 MAX7219 modules) on an ESP32-C3, controlled over 
 - Works on its own after a power cut: the playlist is stored on the device
 - Wi-Fi setup from any phone; app and firmware updates from GitHub Releases, installed from the phone
 
+## Hardware
+
+An ESP32-C3 Super Mini, two MAX7219 4-in-1 LED matrix boards and five wires. Parts, connections and tips: [docs/HARDWARE.md](docs/HARDWARE.md).
+
+![Wiring](docs/wiring.svg)
+
+## In this repository
+
 | Folder | Contents |
 |---|---|
 | [`firmware/`](firmware/) | ESP32-C3 firmware (PlatformIO) |
 | [`app/`](app/) | Android app (Flet) |
 | [`tools/`](tools/) | `dm.py` command-line client, `fake_device.py` for testing without hardware, example playlists |
-| [`docs/`](docs/DESIGN.md) | Design, protocol, roadmap |
+| [`docs/`](docs/DESIGN.md) | Design, protocol, roadmap; [hardware and wiring](docs/HARDWARE.md) |
 
 ## Status
 
