@@ -264,6 +264,8 @@ Finding the display: the last address that worked, then `dotmatrix.local`, then 
 
 The app checks GitHub Releases for newer APK and firmware versions and offers to download them.
 
+**Animated preview (M4).** The editor's LED strip plays the item's effects, not just the still text. Only effects copied exactly from MD_Parola are animated: scroll in all four directions, print, wipe, opening/closing, slice, and the Matrix animations (ported from the firmware). Any other effect shows the still picture rather than a wrong animation. Lists stay still to save battery. Each new firmware effect gets its app preview in the same change, so the two never drift apart.
+
 ## 8. Development and release
 
 - `tools/fake_device.py` is a Python WebSocket server that speaks protocol v1, so the app can be developed and tested without the hardware.
@@ -277,7 +279,7 @@ The app checks GitHub Releases for newer APK and firmware versions and offers to
 | **M1: Firmware core** | PlatformIO project, display wrapper, TextMode + ClockMode, animation framework with `matrix_rain` and `matrix_reveal`, LittleFS, Wi-Fi + setup portal, mDNS, NTP, WebSocket API, watchdog |
 | **M2: App core** | Device client, Home, Texts (+ live preview, animation items), Clock, Settings, fake device |
 | **M3: Extras** | Stopwatch and timer on the device, night dimming, OTA from the app, app update check, CI releases |
-| **M4: Effects** | Remaining animations (`starfield`, `life`, `fireworks`, `equalizer`, `snake`, `sprite_run`) and overlays (`wave`, `sparkle`, `pulse`, `border`) |
+| **M4: Effects** | Remaining animations (`starfield`, `life`, `fireworks`, `equalizer`, `snake`, `sprite_run`) and overlays (`wave`, `sparkle`, `pulse`, `border`). Animated preview in the app editor (§7) |
 | **M5: Sensors** | Temperature/humidity mode, weather from the internet |
 
 ## 10. Open questions
