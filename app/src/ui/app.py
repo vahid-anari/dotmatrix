@@ -13,7 +13,7 @@ from core.library import Library
 
 from . import theme
 
-APP_VERSION = "0.2.0"  # must match app/pyproject.toml and the release tag (CI checks)
+APP_VERSION = "0.3.0"  # must match app/pyproject.toml and the release tag (CI checks)
 log = logging.getLogger("app")
 
 
@@ -186,10 +186,10 @@ class App:
         """Keep the display in step when the group it plays is edited."""
         if self.device.connected and self.device.state.get("playlist") == group["name"] \
                 and self.device.state.get("mode") == "text":
-            self.run(self.device.request, "set_playlist", name=group["name"], items=group["items"])
+            self.run(self.device.send_playlist, group["name"], group["items"])
 
 
     def sync_renamed(self, old_name: str, group: dict):
         """If the display plays the renamed group, give it the new name too."""
         if self.device.connected and self.device.state.get("playlist") == old_name:
-            self.run(self.device.request, "set_playlist", name=group["name"], items=group["items"])
+            self.run(self.device.send_playlist, group["name"], group["items"])

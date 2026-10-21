@@ -4,7 +4,7 @@
 // ---- Version -------------------------------------------------------------
 // Release builds set this from the git tag (see .github/workflows/build.yml).
 #ifndef FW_VERSION
-#define FW_VERSION "0.2.0-dev"
+#define FW_VERSION "0.3.0-dev"
 #endif
 #define PROTO_VERSION 1
 

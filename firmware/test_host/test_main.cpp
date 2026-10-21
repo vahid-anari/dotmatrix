@@ -8,6 +8,8 @@
 #include "../src/animations/Registry.h"
 #include "../src/animations/Animation.h"
 #include "../src/display/Effects.h"
+#include "../src/display/Overlay.h"
+#include "../src/display/TextFx.h"
 #include "../src/model/Item.h"
 #include "../src/model/Settings.h"
 #include "../src/modes/TimeFormat.h"
@@ -80,6 +82,20 @@ static void testItems() {
   // Out-of-range values are clamped, unknown effects fall back to no_effect.
   CHECK(parseItem(R"({"speed_in":0,"brightness":99,"effect_in":"zzz"})", it, err));
   CHECK(it.speedIn == 1 && it.brightness == 15 && it.effectIn == 0);
+
+  // M4: lasers, overlays, sprite_run's sprite. Old effect indexes don't move.
+  CHECK(effectIndex("sprite_hourglass") == 45 && effectIndex("laser_write") == 46);
+  CHECK(parseItem(R"({"text":"Hi","effect_in":"laser_cut","effect_out":"laser_scan","overlay":"wave"})", it, err));
+  CHECK(effectAt(it.effectIn).fx == FxKind::LaserCut && effectAt(it.effectOut).fx == FxKind::LaserScan);
+  CHECK(strcmp(overlayId(it.overlay), "wave") == 0);
+  doc.clear();
+  itemToJson(it, doc.to<JsonObject>());
+  CHECK(strcmp(doc["overlay"] | "", "wave") == 0 && strcmp(doc["effect_in"] | "", "laser_cut") == 0);
+  CHECK(parseItem(R"({"text":"Hi","overlay":"nope"})", it, err) && it.overlay == 0);
+  CHECK(parseItem(R"({"type":"animation","animation":"sprite_run","params":{"sprite":"rocket"}})", it, err));
+  doc.clear();
+  itemToJson(it, doc.to<JsonObject>());
+  CHECK(strcmp(doc["params"]["sprite"] | "", "rocket") == 0);
 }
 
 static void testSettings() {
@@ -211,12 +227,145 @@ static void testTime() {
   CHECK(c.elapsed(t0 + 3000) == 0 && !c.running);
 }
 
+static bool same(const Frame& a, const Frame& b) { return memcmp(a.col, b.col, sizeof(a.col)) == 0; }
+
+static int lit(const Frame& f) {
+  int n = 0;
+  for (int x = 0; x < DISPLAY_WIDTH; x++)
+    for (int y = 0; y < DISPLAY_HEIGHT; y++) n += f.get(x, y);
+  return n;
+}
+
+static void testTextPosition() {
+  std::puts("text position (same as Parola)");
+  Display display;
+  // Parola: right edge at (64 - w) / 2 columns from the right of the chain.
+  for (const char* t : {"A", "AB", "Hello", "12:17:01", "W"}) {
+    uint16_t w = display.textWidth(t);
+    Frame f;
+    display.drawText(f, t, Align::Center);
+    int first = 0;
+    while (first < DISPLAY_WIDTH && !f.col[first]) first++;
+    // The glyph's first column may be empty, so compare against the layout start.
+    int expected = DISPLAY_WIDTH - (int)w - (DISPLAY_WIDTH - (int)w) / 2;
+    Frame g;
+    display.drawText(g, t, Align::Left, expected);
+    CHECK(same(f, g));
+  }
+  // UTF-8: "Ü" is C3 9C; 9C is an empty glyph, and Parola adds no gap after it.
+  CHECK(display.textWidth("\xc3\x9c" "A") == display.textWidth("\xc3" "A"));
+  // Wider than the display: starts at the left edge, like Parola.
+  Frame a, b;
+  display.drawText(a, "A long text that is wider than 64 columns", Align::Center);
+  display.drawText(b, "A long text that is wider than 64 columns", Align::Left);
+  CHECK(same(a, b));
+}
+
+static void testLasers() {
+  std::puts("laser effects");
+  Display display;
+  Frame text;
+  display.drawText(text, "LASER", Align::Center);
+  for (FxKind k : {FxKind::LaserWrite, FxKind::LaserScan, FxKind::LaserCut}) {
+    static TextFx fx;  // big (1 KB of pixel order), like the one in TextMode
+    Frame f;
+    // In: ends with exactly the text, in a bounded number of steps.
+    fx.begin(text, k, true);
+    int n = 0;
+    while (fx.step(f) && n < 1000) {
+      if (showFrames && n % 12 == 0) printFrame(f);
+      n++;
+    }
+    CHECK(same(f, text));
+    CHECK(n == fx.steps() && n > 10 && n <= 90);
+    // Out: ends empty.
+    fx.begin(text, k, false);
+    n = 0;
+    while (fx.step(f) && n < 1000) n++;
+    CHECK(lit(f) == 0 && n == fx.steps());
+  }
+  // Laser cut visits every pixel of a long text, still in ~80 steps.
+  Frame longText;
+  display.drawText(longText, "WWWWWWWWWWW", Align::Left);
+  static TextFx fx;
+  fx.begin(longText, FxKind::LaserCut, true);
+  CHECK(fx.steps() <= 80);
+  Frame f;
+  while (fx.step(f)) {}
+  CHECK(same(f, longText));
+  // An empty text finishes at once.
+  fx.begin(Frame(), FxKind::LaserWrite, true);
+  CHECK(!fx.step(f) && lit(f) == 0);
+}
+
+static void testOverlays() {
+  std::puts("overlays");
+  Display display;
+  Frame text, f;
+  display.drawText(text, "WAVE", Align::Center);
+  Overlay o;
+  // Wave: at the start the first letter is one row down, the rest unchanged.
+  o.begin(text, OverlayKind::Wave, 8, 1000);
+  CHECK(o.step(f, 1000) == 8);
+  CHECK(!same(f, text) && lit(f) <= lit(text));
+  // ... and after the wave has passed (resting), the text is as it was.
+  o.step(f, 1000 + 4 * 110 + 100);
+  CHECK(same(f, text));
+  // Pulse: starts bright, dims to a quarter halfway, comes back.
+  o.begin(text, OverlayKind::Pulse, 12, 0);
+  CHECK(o.step(f, 0) == 12 && o.step(f, 800) == 3 && o.step(f, 1600) == 12);
+  CHECK(same(f, text));
+  // Border: the text is untouched, plus 6 dots on the edge.
+  o.begin(Frame(), OverlayKind::Border, 8, 0);
+  o.step(f, 5000);
+  CHECK(lit(f) == 6);
+  // Sparkle adds a few pixels.
+  o.begin(text, OverlayKind::Sparkle, 8, 0);
+  o.step(f, 100);
+  CHECK(lit(f) >= lit(text) - 1);
+  CHECK(overlayIndex("border") == 4 && overlayIndex(nullptr) == 0);
+}
+
+static void testScenes() {
+  std::puts("animations: starfield, life, fireworks, equalizer, snake, sprite_run");
+  for (const char* id : {"starfield", "life", "fireworks", "equalizer", "snake", "sprite_run"}) {
+    char json[160];
+    snprintf(json, sizeof(json), R"({"type":"animation","animation":"%s","duration":60000})", id);
+    std::srand(7);
+    // Run a minute of frames (catches crashes and endless loops), counting busy frames.
+    Item it;
+    const char* err = nullptr;
+    CHECK(parseItem(json, it, err));
+    Animation* a = animationAt(it.animation);
+    CHECK(a != nullptr);
+    if (!a) continue;
+    Display display;
+    a->begin(it, display);
+    Frame f;
+    int busy = 0, frames = 0;
+    for (uint32_t t = 0; t < 60000; t += a->defaultFrameMs(), frames++) {
+      g_fakeMillis = t;
+      CHECK(a->step(f, t));
+      busy += lit(f) > 0;
+      if (showFrames && frames % 150 == 0) {
+        std::printf("%s t=%u\n", id, (unsigned)t);
+        printFrame(f);
+      }
+    }
+    CHECK(busy > frames * 3 / 4);
+  }
+}
+
 int main(int argc, char** argv) {
   showFrames = argc > 1 && strcmp(argv[1], "--show") == 0;
   testItems();
   testSettings();
   testAnimations();
   testTime();
+  testTextPosition();
+  testLasers();
+  testOverlays();
+  testScenes();
   std::printf(failures ? "\n%d FAILED\n" : "\nall tests passed\n", failures);
   return failures ? 1 : 0;
 }

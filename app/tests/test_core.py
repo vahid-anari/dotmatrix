@@ -23,8 +23,10 @@ def test_nice_names():
 
 def test_demo_has_one_item_per_effect():
     items = demo_items()
-    texts = [i for i in items if i["type"] == "text"]
-    assert len(texts) == 45  # 46 effects minus "no_effect"
+    texts = [i for i in items if i["type"] == "text" and i.get("overlay", "none") == "none"]
+    assert len(texts) == 48  # 49 effects minus "no_effect"
+    assert len([i for i in items if i["type"] == "animation"]) == 8
+    assert len([i for i in items if i.get("overlay", "none") != "none"]) == 4
     assert items[0]["animation"] == "matrix_reveal"
 
 
@@ -35,6 +37,13 @@ def test_summary_and_normalize():
 
 
 # ---------------------------------------------------------------- preview
+
+def test_text_position_matches_parola():
+    # Centred text leans right when it can't sit exactly in the middle (MD_PZone).
+    cols, x = preview.layout("AB")  # 11 columns: (64 - 11) = 53 → 27 on the left
+    assert len(cols) == 11 and x == 27
+    assert preview.layout("A" * 20)[1] == 0  # wider than the display: from the left
+
 
 def test_text_width_matches_firmware_rules():
     # 5-column glyphs + 1 column spacing; narrow custom 1 and 7 like Display.cpp
@@ -206,3 +215,120 @@ def test_upload_to_fake_device(tmp_path):
     assert got["ctype"].startswith("multipart/form-data; boundary=")
     assert data in got["body"] and b'name="firmware"' in got["body"]
     assert steps and steps[-1] == 1.0
+
+
+# ------------------------------------------- the app's lists match the firmware
+
+FW = __import__("pathlib").Path(__file__).resolve().parents[2] / "firmware" / "src"
+
+
+def test_lists_match_firmware():
+    import re
+
+    from core import sprites
+    from core.items import (ANIMATION_INFO, DEFAULT_ANIMATIONS, DEFAULT_EFFECTS, DEFAULT_OVERLAYS,
+                            DEFAULT_SPRITES)
+    fx = re.findall(r'\{"(\w+)", PA_', (FW / "display/Effects.cpp").read_text())
+    assert fx == DEFAULT_EFFECTS
+    anims = re.findall(r'\{"(\w+)", &', (FW / "animations/Registry.cpp").read_text())
+    assert anims == DEFAULT_ANIMATIONS == list(ANIMATION_INFO)
+    ov = re.search(r"IDS\[\] = \{(.*?)\}", (FW / "display/Overlay.cpp").read_text())[1]
+    assert re.findall(r'"(\w+)"', ov) == DEFAULT_OVERLAYS
+    assert list(sprites.SPRITES) == DEFAULT_SPRITES
+    # Default animation speeds are the firmware's defaultFrameMs().
+    src = (FW / "animations/Scenes.h").read_text() + (FW / "animations/MatrixRain.h").read_text()
+    ms = dict(re.findall(r"class (\w+) : public Animation.*?defaultFrameMs\(\) const override \{ return (\d+)",
+                         src, re.S))
+    names = {"MatrixRain": ["matrix_rain", "matrix_reveal"], "Starfield": ["starfield"], "Life": ["life"],
+             "Fireworks": ["fireworks"], "Equalizer": ["equalizer"], "Snake": ["snake"],
+             "SpriteRun": ["sprite_run"]}
+    for cls, ids in names.items():
+        for a in ids:
+            assert ANIMATION_INFO[a]["speed"] == int(ms[cls]), a
+
+
+# ---------------------------------------------------------------- player
+
+def test_every_effect_ends_right():
+    """Coming in ends with the text at rest, going out ends empty."""
+    from core import player
+    from core.items import DEFAULT_EFFECTS
+    for fx in DEFAULT_EFFECTS:
+        item = {"type": "text", "text": "Hello", "effect_in": fx, "effect_out": fx, "speed_in": 10,
+                "speed_out": 10, "pause": 1000, "gap": 100}
+        p = player.Player(item)
+        text = [0] * 64
+        preview.draw_text(text, "Hello")
+        ins = p.segments[0][0]
+        assert p.frame(ins + 500)[0] == text, fx  # during the pause
+        if fx != "no_effect":
+            assert p.frame(p.total - 50)[0] == [0] * 64, fx  # in the gap
+
+
+def test_lasers_and_overlays():
+    from core import player
+    text = [0] * 64
+    preview.draw_text(text, "LASER")
+    for kind in player.LASERS:
+        frames = player._laser(kind, text, True, __import__("random").Random(1))
+        assert frames[-1] == text and 10 < len(frames) <= 91
+        out = player._laser(kind, text, False, __import__("random").Random(1))
+        assert out[-1] == [0] * 64
+    f, level = player.overlay_frame("pulse", text, 800, None)
+    assert f == text and level == 0.25
+    f, _ = player.overlay_frame("border", [0] * 64, 0, None)
+    assert sum(bin(c).count("1") for c in f) == 6
+
+
+def test_animations_play():
+    from core import player
+    for anim in player.ANIMATIONS:
+        p = player.Player({"type": "animation", "animation": anim, "duration": 8000, "text": "Hi",
+                           "params": {"sprite": "rocket"}})
+        busy = sum(any(p.frame(t)[0]) for t in range(0, 8000, 100))
+        assert busy > 50, anim
+        p.frame(100)  # going back in time starts again
+
+
+def test_long_text_rests_like_parola():
+    """Scrolling in from the right, a long text stops with its end on the display."""
+    from core import player
+    text = "A message much too long to fit on the display at once"
+    cols = preview.text_columns(text)
+    assert len(cols) > 64
+    p = player.Player({"type": "text", "text": text, "effect_in": "scroll_left", "effect_out": "scroll_left",
+                       "speed_in": 10, "speed_out": 10, "pause": 1000, "gap": 100})
+    ins = p.segments[0][0]
+    assert ins == len(cols) * 10  # every column comes in
+    end = [0] * 64
+    for i, c in enumerate(cols[-64:]):
+        end[i] = c
+    assert p.frame(ins + 500)[0] == end
+    assert p.segments[2][0] == 64 * 10  # and leaves in 64 steps
+    # Other entries leave it at the left edge.
+    q = player.Player({"type": "text", "text": text, "effect_in": "print", "pause": 1000})
+    assert q.frame(500)[0] == cols[:64]
+
+
+def test_utf8_like_the_firmware():
+    # The display draws the UTF-8 bytes; the second byte of Ü (0x9C) is an empty
+    # glyph, which gets no gap after it.
+    assert preview.text_columns("Ü") == preview.glyph("\xc3") + [0] + preview.glyph("\x9c")
+    assert preview.glyph("\x9c") == []
+
+
+def test_playable_leaves_out_unknown_animations():
+    d = Device()
+    d.hello = {"animations": ["matrix_rain"]}
+    items = [{"type": "text", "text": "a", "effect_in": "laser_cut"},
+             {"type": "animation", "animation": "matrix_rain"},
+             {"type": "animation", "animation": "fireworks"}]
+    ok, skipped = d.playable(items)
+    assert skipped == 1 and len(ok) == 2
+
+
+def test_player_tolerates_missing_values():
+    from core import player
+    p = player.Player({"type": "text", "text": None, "speed_in": None, "pause": None, "gap": None})
+    p.frame(0)
+    player.Player({"type": "animation", "animation": "snake", "duration": None, "params": None}).frame(500)

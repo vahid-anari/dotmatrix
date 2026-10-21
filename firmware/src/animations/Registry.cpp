@@ -1,10 +1,17 @@
 #include "Registry.h"
 
 #include "MatrixRain.h"
+#include "Scenes.h"
 
-// ---- Add new animations here ----------------------------------------------
+// ---- Add new animations here (at the end, so indexes stay put) -------------
 static MatrixRain matrixRain(false);
 static MatrixRain matrixReveal(true);
+static Starfield starfield;
+static Life life;
+static Fireworks fireworks;
+static Equalizer equalizer;
+static Snake snake;
+static SpriteRun spriteRun;
 
 static const struct {
   const char* id;
@@ -12,6 +19,12 @@ static const struct {
 } ANIMATIONS[] = {
     {"matrix_rain", &matrixRain},
     {"matrix_reveal", &matrixReveal},
+    {"starfield", &starfield},
+    {"life", &life},
+    {"fireworks", &fireworks},
+    {"equalizer", &equalizer},
+    {"snake", &snake},
+    {"sprite_run", &spriteRun},
 };
 // ---------------------------------------------------------------------------
 

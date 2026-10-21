@@ -19,12 +19,14 @@ struct Item {
   Align align = Align::Center;
   bool invert = false;
   int8_t brightness = -1;  // 0..15, -1 = use global
+  uint8_t overlay = 0;     // index into the overlays (0 = none), runs during the pause
 
   // Animation items
   uint8_t animation = 0;    // index into the animation registry
   uint32_t duration = 10000;
   uint8_t density = 0;      // 0 = animation default
   uint16_t frameMs = 0;     // 0 = animation default
+  uint8_t sprite = 0;       // sprite_run: index into the sprites
 };
 
 // Parse an item; returns false with a message in err on invalid input.

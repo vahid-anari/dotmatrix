@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 
-from .items import DEFAULT_ANIMATIONS, DEFAULT_EFFECTS, DEMO_NAME, demo_items
+from .items import DEFAULT_ANIMATIONS, DEFAULT_EFFECTS, DEFAULT_OVERLAYS, DEMO_NAME, demo_items
 
 FILE_VERSION = 1
 
@@ -89,9 +89,11 @@ class Library:
         self.groups.remove(group)
         self.save()
 
-    def restore_demo(self, effects: list[str] | None = None, animations: list[str] | None = None):
+    def restore_demo(self, effects: list[str] | None = None, animations: list[str] | None = None,
+                     overlays: list[str] | None = None):
         g = self.find(DEMO_NAME)
-        items = demo_items(effects or DEFAULT_EFFECTS, animations or DEFAULT_ANIMATIONS)
+        items = demo_items(effects or DEFAULT_EFFECTS, animations or DEFAULT_ANIMATIONS,
+                           overlays or DEFAULT_OVERLAYS)
         if g:
             g["items"] = items
         else:

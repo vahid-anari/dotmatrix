@@ -4,16 +4,22 @@ A group is a playlist kept on the phone. "Play" sends it to the display, which
 stores it and keeps playing it on its own. Editing the group that is playing
 updates the display straight away.
 """
+import asyncio
 import copy
+import logging
+import time
 
 import flet as ft
 
 from core import preview
+from core.player import Player, is_exact
 from core.device import DeviceError
-from core.items import (DEMO_NAME, is_sprite, new_animation_item, new_text_item, nice_name,
+from core.items import (ANIMATION_INFO, DEMO_NAME, is_sprite, new_animation_item, new_text_item, nice_name,
                         normalized, summary)
 
 from .widgets import Debouncer, LabeledSlider, heading, led, muted, section
+
+log = logging.getLogger(__name__)
 
 
 def _text_dialog(app, title: str, value: str, action: str, on_ok, hint: str = "", after=None):
@@ -163,10 +169,11 @@ class TextsTab:
 
     def restore_demo(self):
         def yes():
-            self.app.library.restore_demo(self.app.device.effects, self.app.device.animations)
+            d = self.app.device
+            self.app.library.restore_demo(d.effects, d.animations, d.overlays)
             self.app.refresh()
 
-        _confirm(self.app, "Restore the demo?", "The Demo group goes back to one item per effect.", "Restore", yes)
+        _confirm(self.app, "Restore the demo?", "The Demo group goes back to one item per effect and animation.", "Restore", yes)
 
 
 def led_strip(item: dict, height: int) -> ft.Container:
@@ -217,9 +224,10 @@ class GroupScreen:
                     ft.ReorderableDragHandle(ft.Icon(ft.Icons.DRAG_INDICATOR, color=ft.Colors.ON_SURFACE_VARIANT)),
                     ft.Column([
                         led_strip(it, 34),
-                        ft.Row([ft.Text(label, size=15, weight=ft.FontWeight.W_500, expand=True,
-                                        max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
-                                muted(summary(it), 12)]),
+                        ft.Column([ft.Text(label, size=15, weight=ft.FontWeight.W_500,
+                                           max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
+                                   ft.Text(summary(it), size=12, color=ft.Colors.ON_SURFACE_VARIANT,
+                                           max_lines=1, overflow=ft.TextOverflow.ELLIPSIS)], spacing=0),
                     ], spacing=6, expand=True, horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
                     ft.PopupMenuButton(icon=ft.Icons.MORE_VERT, items=[
                         ft.PopupMenuItem("Duplicate", icon=ft.Icons.COPY, on_click=lambda e, i=i: self._duplicate(i)),
@@ -298,6 +306,12 @@ class EditorScreen:
         self._send_preview = Debouncer(app.page, 0.25, self._preview_now)
 
         self.led = led(preview.render_item(self.item), radius=12)
+        # The LED plays the item over and over, like the display will.
+        self.player = Player(self.item)
+        self._t0 = time.monotonic()
+        self._anim_task = None
+        self.preview_note = muted("")
+        self._update_note()
         self.live = ft.Switch(label="Show on the display while editing",
                               value=app.library.prefs.get("live_preview", True), on_change=self._live_toggled)
         self.text = ft.TextField(label="Text", value=self.item.get("text", ""),
@@ -307,7 +321,7 @@ class EditorScreen:
             appbar=ft.AppBar(title=ft.Text("Animation" if self.is_anim else "Text"), actions=[
                 ft.TextButton("Done", icon=ft.Icons.CHECK, on_click=lambda e: self.app.pop())]),
             # The LED stays pinned at the top so every change is visible while scrolling.
-            controls=[self.led,
+            controls=[ft.Column([self.led, self.preview_note], spacing=4),
                       ft.Column([self.live, *self._fields(), ft.Container(height=24)], spacing=18,
                                 scroll=ft.ScrollMode.AUTO, expand=True,
                                 horizontal_alignment=ft.CrossAxisAlignment.STRETCH)],
@@ -355,28 +369,15 @@ class EditorScreen:
         secs = lambda v: f"{v:g} s"  # noqa: E731
         ms = lambda v: f"{int(v)} ms per step"  # noqa: E731
         if self.is_anim:
-            anim = self.item.get("animation", "matrix_rain")
-            text = self.text
-            text.visible = anim == "matrix_reveal"
-            params = self.item.setdefault("params", {})
-
-            def anim_changed(e):
-                self.set("animation", e.control.value)
-                text.visible = e.control.value == "matrix_reveal"
-                text.update()
-
-            density = LabeledSlider("Number of drops", params.get("density", 18), 4, 40, 1,
-                                    lambda v: f"{int(v)}", lambda v: self._param("density", int(v)))
-            speed = LabeledSlider("Speed", params.get("speed", 45), 20, 150, 5, ms,
-                                  lambda v: self._param("speed", int(v)))
             dd = self._dropdown("Animation", "animation", d.animations)
-            dd.on_select = anim_changed
+            dd.on_select = self._animation_changed
+            self.anim_settings = ft.Column(self._animation_settings(), spacing=10)
             return [
-                section("Animation", dd, text),
+                section("Animation", dd, self.text),
                 section("Timing",
                         self._slider("Runs for", "duration", 2, 60, 1, secs, scale=1000),
                         self._slider("Blank before the next item", "gap", 0, 3, 0.1, secs, scale=1000)),
-                section("Rain", density, speed, note="Lower speed values fall faster."),
+                section("Settings", self.anim_settings, note="Lower speed values move faster."),
                 self._looks(),
             ]
         return [
@@ -390,8 +391,40 @@ class EditorScreen:
             section("Timing",
                     self._slider("Stays still for", "pause", 0, 10, 0.1, secs, scale=1000),
                     self._slider("Blank before the next item", "gap", 0, 3, 0.1, secs, scale=1000)),
+            *([section("While it stays", ft.Row([self._dropdown("Effect", "overlay", d.overlays)]),
+                       note="Plays over the text while it stays still (when it fits on the display).")]
+              if len(d.overlays) > 1 else []),
             self._looks(),
         ]
+
+    def _animation_settings(self) -> list[ft.Control]:
+        """The sliders and pickers that the chosen animation uses."""
+        anim = self.item.get("animation", "matrix_rain")
+        info = ANIMATION_INFO.get(anim, {})
+        params = self.item.setdefault("params", {})
+        self.text.visible = bool(info.get("text"))
+        out = []
+        if "density" in info:
+            label, lo, hi, default = info["density"]
+            out.append(LabeledSlider(label, params.get("density", default), lo, hi, 1, lambda v: f"{int(v)}",
+                                     lambda v: self._param("density", int(v))))
+        if info.get("sprite"):
+            sprites = self.app.device.sprites
+            out.append(ft.Dropdown(label="Sprite", value=params.get("sprite", sprites[0]), menu_height=420,
+                                   options=[ft.DropdownOption(key=s, text=nice_name(s)) for s in sprites],
+                                   on_select=lambda e: self._param("sprite", e.control.value)))
+        speed = info.get("speed", 50)
+        out.append(LabeledSlider("Speed", params.get("speed", speed), max(10, speed // 3), speed * 3, 5,
+                                 lambda v: f"{int(v)} ms per frame", lambda v: self._param("speed", int(v))))
+        return out
+
+    def _animation_changed(self, e):
+        # Settings mean different things per animation, so they start fresh.
+        self.item["params"] = {}
+        self.set("animation", e.control.value)
+        self.anim_settings.controls = self._animation_settings()
+        self.anim_settings.update()
+        self.text.update()
 
     # -------------------------------------------------------------- updates
     def set(self, key, value):
@@ -399,8 +432,9 @@ class EditorScreen:
             self.item.pop(key, None)
         else:
             self.item[key] = value
-        self.led.content.src = preview.render_item(self.item)
-        self.led.update()
+        self.player = Player(self.item)  # start the preview again, with the change
+        self._t0 = time.monotonic()
+        self._update_note()
         self._save()
         if self.live.value:
             self._send_preview()
@@ -437,14 +471,47 @@ class EditorScreen:
             self._live_on = False
             self.app.device.send("preview_end")
 
+    def _update_note(self):
+        rough = [] if self.is_anim else list(dict.fromkeys(
+            nice_name(e) for e in (self.item.get("effect_in"), self.item.get("effect_out"))
+            if e and not is_exact(e)))
+        self.preview_note.value = (f"The preview shows {' and '.join(rough)} only roughly; "
+                                   "the display shows it exactly.") if rough else ""
+        self.preview_note.visible = bool(rough)
+        try:
+            self.preview_note.update()
+        except RuntimeError:  # not on screen yet
+            pass
+
+    async def _animate(self):
+        """About 25 frames a second while the editor is open."""
+        while True:
+            t = int((time.monotonic() - self._t0) * 1000)
+            try:
+                cols, level = self.player.frame(t)
+                self.led.content.src = preview.render_frame(cols, level)
+            except Exception:  # noqa: BLE001 — a preview bug mustn't stop the editor
+                log.exception("preview frame failed")
+                await asyncio.sleep(1)
+                continue
+            try:
+                self.led.update()
+            except RuntimeError:  # the view is gone
+                return
+            await asyncio.sleep(0.04)
+
     def show(self):
         self.app.push(self.view, self)
+        self._anim_task = self.app.page.run_task(self._animate)
         if self.index is None:
             self._save()  # a new item exists as soon as its editor opens
         if self.live.value:
             self._send_preview()
 
     def on_close(self):
+        if self._anim_task:
+            self._anim_task.cancel()
+            self._anim_task = None
         if self._live_on:
             self.app.device.send("preview_end")
         self.gs.changed()

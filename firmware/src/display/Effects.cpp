@@ -49,6 +49,10 @@ static const EffectInfo EFFECTS[] = {
     {"sprite_walker", PA_SPRITE},
     {"sprite_wheel", PA_SPRITE},
     {"sprite_hourglass", PA_SPRITE},
+    // Our own, drawn by TextFx. New effects go at the end so indexes stay put.
+    {"laser_write", PA_NO_EFFECT, FxKind::LaserWrite},
+    {"laser_scan", PA_NO_EFFECT, FxKind::LaserScan},
+    {"laser_cut", PA_NO_EFFECT, FxKind::LaserCut},
 };
 
 static constexpr uint8_t COUNT = sizeof(EFFECTS) / sizeof(EFFECTS[0]);

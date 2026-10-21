@@ -62,7 +62,7 @@ On GitHub, in the repo: **Settings → Secrets and variables → Actions → New
 
 Keep `dotmatrix.jks` and its password safe and **never commit it** (`*.jks` is in `.gitignore`). If the key is lost, the next version can only be installed after uninstalling the app. An app installed before the key existed has to be uninstalled once: export your texts first (Settings → Export) and import them afterwards.
 
-Making a release: set the same version in `app/pyproject.toml` and `APP_VERSION` (`src/ui/app.py`), commit, then tag it (`git tag v0.2.0 && git push origin v0.2.0`). CI refuses a tag that doesn't match.
+Making a release: set the same version in `app/pyproject.toml` and `APP_VERSION` (`src/ui/app.py`), commit, then tag it (`git tag v0.3.0 && git push origin v0.3.0`). CI refuses a tag that doesn't match.
 
 To build locally instead: `cd app && flet build apk` (the APK ends up in `app/build/apk/`).
 
@@ -81,7 +81,9 @@ cd app && python -m pytest
 | `src/core/discovery.py` | Finds the display: last address, `dotmatrix.local`, then a scan of the Wi-Fi subnet |
 | `src/core/library.py` | Groups and preferences in one JSON file |
 | `src/core/items.py` | Item defaults, readable effect names, the Demo group |
-| `src/core/preview.py` | Draws items as LEDs with the firmware's font |
+| `src/core/preview.py` | Draws items as LEDs with the firmware's font, at Parola's text position |
+| `src/core/player.py` | Plays an item over time for the editor's animated preview (ports of the firmware's effects) |
+| `src/core/sprites.py` | Sprite pictures, generated from the firmware by `tools/gen_sprites.py` |
 | `src/core/updates.py` | Latest GitHub release, downloads, firmware upload to the display |
 | `src/ui/` | One module per screen, plus the shared theme and widgets |
 
