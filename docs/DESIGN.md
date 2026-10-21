@@ -1,6 +1,6 @@
 # Dot Matrix Display — Design
 
-Status: v0.2 (2026-10-21), M1 done and tested on hardware
+Status: v0.3 (2026-10-21), M1 done and tested on hardware; M2 app written
 
 A 64×8 LED matrix (eight 8×8 MAX7219 modules) driven by an ESP32-C3, controlled from an Android app written in Python with Flet. This document records the decisions made so far and is the reference for both halves of the project.
 
@@ -248,15 +248,19 @@ app/
     └── ui/         one module per screen, shared widgets, theme
 ```
 
-Screens (bottom navigation bar):
+Screens (bottom navigation bar; Tools comes with M3):
 
-1. **Home**: connection state, current mode, quick mode switch, brightness, display on/off.
+1. **Home**: connection state, what's showing now (drawn as LEDs), mode (texts / clock / off), brightness, a quick message shown as a preview.
 2. **Texts**: groups → items → editor. Drag to reorder, duplicate, "play this group" (sends `set_playlist`). The editor uses `preview` so changes show live on the matrix.
 3. **Clock**: 12/24 h, seconds, date interval and format, night dimming.
 4. **Tools**: stopwatch and countdown timer, both running on the device.
 5. **Settings**: device address (auto via mDNS, manual override), Wi-Fi, firmware version and update, app version and update, library backup/restore (JSON file).
 
 Storage on the phone: one JSON file in `FLET_APP_STORAGE_DATA`. The Demo group (one item per effect) is built in.
+
+Look: aluminium greys, circuit-board green for controls, and red only in the LED previews, which use the firmware's font so they match the display column for column.
+
+Finding the display: the last address that worked, then `dotmatrix.local`, then a scan of the phone's /24 subnet for `/api/status` (no special Android permissions). After three failed reconnects the app looks again, in case the router gave the display a new address.
 
 The app checks GitHub Releases for newer APK and firmware versions and offers to download them.
 
