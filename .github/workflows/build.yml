@@ -1,0 +1,127 @@
+# Builds the Android app and the firmware.
+#
+# - Every push to main: both are built; download them from the run's Artifacts.
+# - A tag like v0.1.0: the same, plus a GitHub Release with the APK and
+#   firmware.bin attached, so the phone can download and install it directly.
+#
+#   git tag v0.1.0 && git push origin v0.1.0
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write  # to create releases
+
+jobs:
+  app:
+    name: Android app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Flet
+        run: pip install "flet[all]==1.0.4"
+
+      - name: Version from tag
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$(grep -m1 '^version' app/pyproject.toml | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build APK
+        working-directory: app
+        run: >
+          flet build apk --yes --no-rich-output --skip-flutter-doctor
+          --build-version "${{ steps.ver.outputs.version }}"
+          --build-number "${{ github.run_number }}"
+
+      - name: Name the APK
+        run: |
+          mkdir -p dist
+          cp app/build/apk/*.apk "dist/dotmatrix-${{ steps.ver.outputs.version }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dotmatrix-apk
+          path: dist/*.apk
+
+  firmware:
+    name: Firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build
+        working-directory: firmware
+        run: pio run
+
+      - name: Host tests
+        working-directory: firmware
+        run: ARDUINOJSON=.pio/libdeps/esp32c3/ArduinoJson/src ./test_host/run.sh
+
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp firmware/.pio/build/esp32c3/firmware.bin dist/dotmatrix-firmware.bin
+          cp firmware/.pio/build/esp32c3/firmware.factory.bin dist/dotmatrix-firmware-full.bin
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dotmatrix-firmware
+          path: dist/*.bin
+
+  app-tests:
+    name: App tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "flet==1.0.4" "websockets>=13,<18" pytest
+      - working-directory: app
+        run: python -m pytest -q
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [app, firmware, app-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
