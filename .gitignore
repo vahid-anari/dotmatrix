@@ -7,7 +7,9 @@ __pycache__/
 *.pyc
 .venv/
 app/build/
-app/storage/
+app/src/storage/
+app/src/.flet/
+.pytest_cache/
 
 # Editors and OS
 .idea/

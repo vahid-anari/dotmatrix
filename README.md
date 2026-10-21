@@ -11,8 +11,8 @@ A 64×8 LED matrix (eight 8×8 MAX7219 modules) on an ESP32-C3, controlled over 
 | Folder | Contents |
 |---|---|
 | [`firmware/`](firmware/) | ESP32-C3 firmware (PlatformIO) |
-| `app/` | Android app (Flet), coming in milestone 2 |
-| [`tools/`](tools/) | `dm.py` command-line client and example playlists |
+| [`app/`](app/) | Android app (Flet) |
+| [`tools/`](tools/) | `dm.py` command-line client, `fake_device.py` for testing without hardware, example playlists |
 | [`docs/`](docs/DESIGN.md) | Design, protocol, roadmap |
 
 ## Status
@@ -20,7 +20,7 @@ A 64×8 LED matrix (eight 8×8 MAX7219 modules) on an ESP32-C3, controlled over 
 | Milestone | |
 |---|---|
 | M1: Firmware core | ✅ done, tested on hardware |
-| M2: App core | next |
+| M2: App core | ✅ written, tested against the fake display; phone test pending |
 | M3: Stopwatch, timer, OTA from app, CI releases | planned |
 | M4: More animations and text overlays | planned |
 | M5: Temperature/humidity, weather | planned |

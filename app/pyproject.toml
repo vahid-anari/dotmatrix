@@ -1,0 +1,27 @@
+[project]
+name = "dotmatrix"
+version = "0.1.0"
+description = "Control app for the Dot Matrix LED display"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Vahid Anari" }]
+dependencies = [
+  "flet==1.0.4",
+  "websockets>=13,<18",
+]
+
+[dependency-groups]
+dev = ["flet[all]==1.0.4", "pytest"]
+
+[tool.flet]
+org = "com.vahidanari"
+product = "Dot Matrix"
+company = "Vahid Anari"
+copyright = "Copyright (C) 2026 Vahid Anari"
+
+[tool.flet.app]
+path = "src"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
