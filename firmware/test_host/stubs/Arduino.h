@@ -22,6 +22,8 @@ inline T min(T a, T b) { return a < b ? a : b; }
 template <class T>
 inline T max(T a, T b) { return a > b ? a : b; }
 
+#define constrain(v, lo, hi) ((v) < (lo) ? (lo) : ((v) > (hi) ? (hi) : (v)))
+
 struct FakeSerial {
   template <class... A>
   void printf(const char* f, A... a) { std::printf(f, a...); }

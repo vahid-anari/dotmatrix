@@ -50,10 +50,78 @@ void TextMode::play(App& app, const Item& item, uint32_t now) {
     _frame.clear();
     app.display.clear();
     _state = State::Anim;
+  } else if (phased(app, item)) {
+    _anim = nullptr;
+    _brightness = _shownBrightness = app.brightnessFor(item.brightness);
+    _base.clear();
+    // Text wider than the display starts at the left edge, except after
+    // scrolling in from the right: Parola stops once the last column is in.
+    int offset = 0;
+    uint16_t w = app.display.textWidth(_current.text);
+    if (w > DISPLAY_WIDTH && effectAt(_current.effectIn).effect == PA_SCROLL_LEFT)
+      offset = (int)DISPLAY_WIDTH - (int)w;
+    app.display.drawText(_base, _current.text, _current.align, offset);
+    beginIn(app, now);
   } else {
     _anim = nullptr;
     app.display.playText(_current);
     _state = State::Text;
+  }
+}
+
+bool TextMode::phased(App& app, const Item& item) const {
+  if (effectAt(item.effectIn).fx != FxKind::None || effectAt(item.effectOut).fx != FxKind::None)
+    return true;
+  // Overlays need the whole text on the display: a longer one scrolls through,
+  // and Parola leaves it somewhere our frames can't match.
+  return item.overlay && app.display.textWidth(item.text) <= DISPLAY_WIDTH;
+}
+
+void TextMode::show(App& app, const Frame& f) {
+  _frame = f;
+  if (_current.invert) _frame.invert();
+  app.display.push(_frame);
+}
+
+void TextMode::beginIn(App& app, uint32_t now) {
+  const EffectInfo& in = effectAt(_current.effectIn);
+  if (in.fx != FxKind::None) {
+    _fx.begin(_base, in.fx, true);
+    _frameMs = _current.speedIn;
+    _lastFrame = now - _frameMs;  // first frame right away
+    app.display.clear();
+    _state = State::FxIn;
+  } else if (effectIsNone(_current.effectIn)) {
+    beginHold(app, now);
+  } else {
+    app.display.playTextIn(_current);
+    _state = State::ParolaIn;
+  }
+}
+
+void TextMode::beginHold(App& app, uint32_t now) {
+  _holdStart = _lastFrame = now;
+  _overlay.begin(_base, (OverlayKind)_current.overlay, _brightness, now);
+  show(app, _base);
+  _state = State::Hold;
+}
+
+void TextMode::beginOut(App& app, uint32_t now) {
+  _brightness = app.brightnessFor(_current.brightness);  // night dimming may have started meanwhile
+  if (_shownBrightness != _brightness) app.display.setBrightness(_brightness);
+  _shownBrightness = _brightness;
+  show(app, _base);  // undo whatever the overlay was showing
+  const EffectInfo& out = effectAt(_current.effectOut);
+  if (out.fx != FxKind::None) {
+    _fx.begin(_base, out.fx, false);
+    _frameMs = _current.speedOut;
+    _lastFrame = now - _frameMs;
+    _state = State::FxOut;
+  } else if (effectIsNone(_current.effectOut)) {
+    startGap(app, now);  // the text stays up
+  } else {
+    app.display.playTextOut(_current);
+    _state = State::ParolaOut;
   }
 }
 
@@ -76,7 +144,7 @@ void TextMode::startGap(App& app, uint32_t now) {
   _gapStart = now;
   _state = State::Gap;
   // A text whose exit effect is "no effect" stays up during the gap.
-  if (!(_current.type == ItemType::Text && effectAt(_current.effectOut).effect == PA_NO_EFFECT))
+  if (!(_current.type == ItemType::Text && effectIsNone(_current.effectOut)))
     app.display.clear();
 }
 
@@ -87,7 +155,39 @@ void TextMode::loop(App& app, uint32_t now) {
       break;
 
     case State::Text:
+    case State::ParolaOut:
       if (app.display.animate()) startGap(app, now);
+      break;
+
+    case State::ParolaIn:
+      if (app.display.animate()) beginHold(app, now);
+      break;
+
+    case State::FxIn:
+    case State::FxOut:
+      if (now - _lastFrame >= _frameMs) {
+        _lastFrame = now;
+        Frame f;
+        bool more = _fx.step(f);
+        show(app, f);
+        if (!more) {
+          if (_state == State::FxIn)
+            beginHold(app, now);
+          else
+            startGap(app, now);
+        }
+      }
+      break;
+
+    case State::Hold:
+      if (_current.overlay && now - _lastFrame >= _overlay.frameMs()) {
+        _lastFrame = now;
+        Frame f;
+        uint8_t b = _overlay.step(f, now);
+        show(app, f);
+        if (b != _shownBrightness) app.display.setBrightness(_shownBrightness = b);
+      }
+      if (now - _holdStart >= _current.pause) beginOut(app, now);
       break;
 
     case State::Anim:

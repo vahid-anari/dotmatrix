@@ -57,7 +57,7 @@ python tools/dm.py watch
 
 ## Host tests
 
-The item/settings parsing and the animations also build and run on a PC:
+The item/settings parsing, the lasers, overlays and animations also build and run on a PC:
 
 ```sh
 pio pkg install                          # fetches ArduinoJson into .pio/libdeps
@@ -69,8 +69,8 @@ pio pkg install                          # fetches ArduinoJson into .pio/libdeps
 | Path | What it does |
 |---|---|
 | `src/App.*` | Owns everything: modes, protocol commands, saving, watchdog |
-| `src/display/` | MD_Parola wrapper (text + effects), direct frame drawing, sprites |
-| `src/animations/` | Standalone animations; add one in `Registry.cpp` |
+| `src/display/` | MD_Parola wrapper (text + effects), direct frame drawing, sprites; `TextFx` (lasers) and `Overlay` (wave, sparkle, ...) |
+| `src/animations/` | Standalone animations (`MatrixRain`, the rest in `Scenes`); add one in `Registry.cpp` |
 | `src/modes/` | Text playlist, clock (off mode lives in `App.*`) |
 | `src/model/` | `Item` and `Settings` with their JSON format |
 | `src/net/` | Wi-Fi + setup portal, mDNS, NTP, OTA, HTTP/WebSocket server |

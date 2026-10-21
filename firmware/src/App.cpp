@@ -6,6 +6,8 @@
 #include <esp_task_wdt.h>
 
 #include "animations/Registry.h"
+#include "display/Overlay.h"
+#include "display/Sprites.h"
 #include "display/Effects.h"
 #include "model/JsonUtil.h"
 #include "net/WebServer.h"
@@ -314,6 +316,10 @@ void App::sendHello(uint32_t client) {
   for (uint8_t i = 0; i < effectCount(); i++) fx.add(effectAt(i).id);
   JsonArray an = doc["animations"].to<JsonArray>();
   for (uint8_t i = 0; i < animationCount(); i++) an.add(animationId(i));
+  JsonArray ov = doc["overlays"].to<JsonArray>();
+  for (uint8_t i = 0; i < overlayCount(); i++) ov.add(overlayId(i));
+  JsonArray sp = doc["sprites"].to<JsonArray>();
+  for (size_t i = 0; i < spriteCount(); i++) sp.add(spriteAt(i).id);
   JsonArray md = doc["modes"].to<JsonArray>();
   for (const char* m : {"text", "clock", "off", "stopwatch", "timer"}) md.add(m);
   WebServer::send(client, doc);

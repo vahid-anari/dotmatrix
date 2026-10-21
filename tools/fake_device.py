@@ -35,6 +35,8 @@ def read_ids(path, pattern):
 
 EFFECTS = read_ids(FW / "display" / "Effects.cpp", r'\{"([a-z0-9_]+)", PA_')
 ANIMATIONS = read_ids(FW / "animations" / "Registry.cpp", r'\{"([a-z0-9_]+)", &')
+OVERLAYS = read_ids(FW / "display" / "Overlay.cpp", r'"([a-z]+)"(?=[,}])')
+SPRITES = read_ids(FW / "display" / "Sprites.cpp", r'\{"([a-z0-9_]+)", \w+, \w+_w')
 MAX_ITEMS, MAX_TEXT = 100, 128
 fw_version = "0.2.0-fake"
 
@@ -136,7 +138,7 @@ def state_msg():
 def hello_msg():
     return {"evt": "hello", "proto": 1, "fw": fw_version, "name": settings["hostname"],
             "max_items": MAX_ITEMS, "max_text": MAX_TEXT, "effects": EFFECTS,
-            "animations": ANIMATIONS, "modes": ["text", "clock", "off", "stopwatch", "timer"]}
+            "animations": ANIMATIONS, "overlays": OVERLAYS, "sprites": SPRITES, "modes": ["text", "clock", "off", "stopwatch", "timer"]}
 
 
 def check_item(it):
@@ -386,7 +388,7 @@ async def main():
     await runner.setup()
     await web.TCPSite(runner, a.host, a.port).start()
     log(f"fake device {fw_version} on ws://{a.host}:{a.port}/ws  ({len(EFFECTS)} effects, "
-        f"{len(ANIMATIONS)} animations)")
+        f"{len(ANIMATIONS)} animations, {len(OVERLAYS)} overlays)")
     await ticker()
 
 

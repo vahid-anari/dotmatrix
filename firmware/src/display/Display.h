@@ -18,6 +18,11 @@ class Display {
 
   // ---- Parola text ----
   void playText(const Item& item);
+  // Play only one half of an item with Parola: its entry (the text then stays)
+  // or its exit (the text appears at once, then leaves). Used when the other
+  // half is one of our own effects, or an overlay runs in between.
+  void playTextIn(const Item& item);
+  void playTextOut(const Item& item);
   // Replace the text of the item that is playing, keeping its animation state.
   void setText(const char* text);
   // Advance the animation. Returns true once the item has finished (in → pause → out).
@@ -43,5 +48,6 @@ class Display {
   bool _power = true;
 
   void applySprites(const Item& item);
+  void start(const Item& item, textEffect_t in, textEffect_t out, uint16_t speedIn, uint16_t pause);
   uint8_t glyph(char c, uint8_t* buf, uint8_t size) const;
 };

@@ -4,6 +4,8 @@
 
 #include "../animations/Registry.h"
 #include "../display/Effects.h"
+#include "../display/Overlay.h"
+#include "../display/Sprites.h"
 
 static Align parseAlign(const char* s) {
   if (s && strcmp(s, "left") == 0) return Align::Left;
@@ -41,6 +43,9 @@ bool itemFromJson(JsonObjectConst o, Item& out, const char*& err) {
     JsonObjectConst p = o["params"];
     it.density = clampTo<uint8_t>(jsonNum(p["density"], 0), 0, 64);
     it.frameMs = clampTo<uint16_t>(jsonNum(p["speed"], 0), 0, 1000);
+    const char* sprite = p["sprite"] | "";
+    for (size_t i = 0; i < spriteCount(); i++)
+      if (strcmp(spriteAt(i).id, sprite) == 0) it.sprite = (uint8_t)i;
   } else if (strcmp(type, "text") != 0) {
     err = "unknown item type";
     return false;
@@ -62,6 +67,7 @@ bool itemFromJson(JsonObjectConst o, Item& out, const char*& err) {
   it.align = parseAlign(o["align"] | "center");
   it.invert = o["invert"] | false;
   it.brightness = clampTo<int8_t>(jsonNum(o["brightness"], -1), -1, 15);
+  it.overlay = overlayIndex(o["overlay"] | "none");
 
   out = it;
   return true;
@@ -72,10 +78,11 @@ void itemToJson(const Item& it, JsonObject o) {
     o["type"] = "animation";
     o["animation"] = animationId(it.animation);
     o["duration"] = it.duration;
-    if (it.density || it.frameMs) {
+    if (it.density || it.frameMs || it.sprite) {
       JsonObject p = o["params"].to<JsonObject>();
       if (it.density) p["density"] = it.density;
       if (it.frameMs) p["speed"] = it.frameMs;
+      if (it.sprite) p["sprite"] = spriteAt(it.sprite).id;
     }
   } else {
     o["type"] = "text";
@@ -90,4 +97,5 @@ void itemToJson(const Item& it, JsonObject o) {
   o["align"] = alignName(it.align);
   o["invert"] = it.invert;
   if (it.brightness >= 0) o["brightness"] = it.brightness;
+  if (it.overlay) o["overlay"] = overlayId(it.overlay);
 }

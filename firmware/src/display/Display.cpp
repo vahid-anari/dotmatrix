@@ -40,18 +40,40 @@ void Display::applySprites(const Item& item) {
   _parola.setSpriteData(in->data, in->width, in->frames, out->data, out->width, out->frames);
 }
 
-void Display::playText(const Item& item) {
+void Display::start(const Item& item, textEffect_t in, textEffect_t out, uint16_t speedIn,
+                    uint16_t pause) {
   strlcpy(_text, item.text, sizeof(_text));
   // Invert first: displayClear() fills with the *current* invert state, and
   // scroll/sprite effects don't clear again, so the old state would show through.
   _parola.setInvert(item.invert);
   _parola.displayClear();
   _parola.setTextAlignment(toParola(item.align));
-  _parola.setSpeedInOut(item.speedIn, item.speedOut);
-  _parola.setPause(item.pause);
+  _parola.setSpeedInOut(speedIn, item.speedOut);
+  _parola.setPause(pause);
   applySprites(item);
-  _parola.setTextEffect(effectAt(item.effectIn).effect, effectAt(item.effectOut).effect);
+  _parola.setTextEffect(in, out);
   _parola.displayReset();
+}
+
+// "None" coming in means the text is simply there: Parola's PA_NO_EFFECT would
+// skip the whole item instead, so it's shown with PA_PRINT.
+static textEffect_t entry(const Item& item) {
+  textEffect_t e = effectAt(item.effectIn).effect;
+  return e == PA_NO_EFFECT ? PA_PRINT : e;
+}
+
+void Display::playText(const Item& item) {
+  start(item, entry(item), effectAt(item.effectOut).effect, item.speedIn, item.pause);
+}
+
+// PA_NO_EFFECT on the way out ends the animation and leaves the text up.
+void Display::playTextIn(const Item& item) {
+  start(item, entry(item), PA_NO_EFFECT, item.speedIn, 0);
+}
+
+// PA_PRINT shows the whole text in one step; with no pause the exit follows.
+void Display::playTextOut(const Item& item) {
+  start(item, PA_PRINT, effectAt(item.effectOut).effect, 1, 0);
 }
 
 void Display::setText(const char* text) {

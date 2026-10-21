@@ -12,7 +12,7 @@ from typing import Callable
 
 import websockets
 
-from .items import DEFAULT_ANIMATIONS, DEFAULT_EFFECTS
+from .items import DEFAULT_ANIMATIONS, DEFAULT_EFFECTS, DEFAULT_OVERLAYS, DEFAULT_SPRITES
 
 PROTO_VERSION = 1
 log = logging.getLogger("device")
@@ -52,6 +52,17 @@ class Device:
     @property
     def animations(self) -> list[str]:
         return self.hello.get("animations") or DEFAULT_ANIMATIONS
+
+    @property
+    def overlays(self) -> list[str]:
+        """["none"] for firmware from before overlays: the editor then hides them."""
+        if not self.hello:
+            return DEFAULT_OVERLAYS
+        return self.hello.get("overlays") or ["none"]
+
+    @property
+    def sprites(self) -> list[str]:
+        return self.hello.get("sprites") or DEFAULT_SPRITES
 
     @property
     def max_items(self) -> int:
@@ -201,10 +212,28 @@ class Device:
             pass
 
     # ------------------------------------------------------------ convenience
+    def playable(self, items: list[dict]) -> tuple[list[dict], int]:
+        """The items this display's firmware can play, and how many were left
+        out (animations it doesn't have yet: it would refuse the whole list).
+        Unknown effects and overlays are fine: older firmware ignores them."""
+        known = set(self.animations)
+        ok = [it for it in items if it.get("type") != "animation" or it.get("animation") in known]
+        return ok, len(items) - len(ok)
+
+    async def send_playlist(self, name: str, items: list[dict]) -> int:
+        ok, skipped = self.playable(items)
+        if skipped and not ok:
+            raise DeviceError("These animations need newer display firmware: update it under Settings.")
+        await self.request("set_playlist", name=name, items=ok)
+        return skipped
+
     async def play_group(self, name: str, items: list[dict]):
-        await self.request("set_playlist", name=name, items=items)
+        skipped = await self.send_playlist(name, items)
         if self.state.get("mode") != "text":
             await self.request("set_mode", mode="text")
+        if skipped:
+            raise DeviceError(f"Playing, without {skipped} animation{'s' if skipped > 1 else ''} that need "
+                              "newer display firmware (update it under Settings).")
 
     async def update_settings(self, **settings):
         await self.request("set_settings", settings=settings)

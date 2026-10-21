@@ -2,8 +2,10 @@
 
 A 64×8 LED matrix (eight 8×8 MAX7219 modules) on an ESP32-C3, controlled over Wi-Fi from an Android app.
 
-- Text with 46 entry/exit effects, including sprites (Pacman, rocket, ...)
-- Standalone animations: Matrix rain, Matrix reveal (more coming)
+- Text with 49 entry/exit effects, including sprites (Pacman, rocket, ...) and three laser effects
+- Effects over a text while it stays: wave, sparkle, pulse, border
+- Standalone animations: Matrix rain, Matrix reveal, starfield, Game of Life, fireworks, equalizer, snake, running sprite
+- The app's editor previews each item, animated, the way the display plays it
 - Clock synced from the internet, with automatic daylight saving and night dimming
 - Stopwatch and countdown timer that run on the display
 - Works on its own after a power cut: the playlist is stored on the device
@@ -22,8 +24,8 @@ A 64×8 LED matrix (eight 8×8 MAX7219 modules) on an ESP32-C3, controlled over 
 |---|---|
 | M1: Firmware core | ✅ done, tested on hardware |
 | M2: App core | ✅ done, tested on a phone |
-| M3: Stopwatch, timer, updates from the app, CI releases | ✅ written, tested against the fake display |
-| M4: More animations and text overlays | planned |
+| M3: Stopwatch, timer, updates from the app, CI releases | ✅ done, released as v0.2.0 |
+| M4: More animations, lasers, overlays, animated preview | ✅ written, tested on the PC (host tests, fake display) |
 | M5: Temperature/humidity, weather | planned |
 
 ## Downloads
