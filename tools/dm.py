@@ -11,11 +11,13 @@ dm — talk to the Dot Matrix display from the command line (protocol v1).
     python tools/dm.py settings '{"brightness":4,"clock":{"date_every":30}}'
     python tools/dm.py watch            # print every message from the device
 
-Use --host to reach a device by IP (default: dotmatrix.local).
+Use --host to reach a device by IP, or set DM_HOST once per terminal
+(default: dotmatrix.local).
 """
 import argparse
 import asyncio
 import json
+import os
 import sys
 
 try:
@@ -30,7 +32,10 @@ async def run(host, commands, watch=False):
     try:
         ws = await asyncio.wait_for(websockets.connect(url, max_size=2**20), timeout=5)
     except Exception as ex:  # noqa: BLE001
-        sys.exit(f"Can't connect to {url}: {ex}")
+        hint = ""
+        if host.endswith(".local"):
+            hint = "\nIf the name doesn't resolve, use the IP shown on the display: --host 192.168.x.x (or set DM_HOST)"
+        sys.exit(f"Can't connect to {url}: {type(ex).__name__} {ex}{hint}")
 
     async with ws:
         pending = {}   # id -> command name, until acked
@@ -68,7 +73,8 @@ async def run(host, commands, watch=False):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--host", default="dotmatrix.local")
+    p.add_argument("--host", default=os.environ.get("DM_HOST", "dotmatrix.local"),
+                   help="device name or IP (default: $DM_HOST or dotmatrix.local)")
     sub = p.add_subparsers(dest="action", required=True)
     sub.add_parser("state")
     sub.add_parser("watch")
