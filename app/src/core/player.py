@@ -281,7 +281,7 @@ def _laser(kind: str, text: Frame, entering: bool, rng: random.Random) -> list[F
                         _set(f, spark, y, not _get(f, spark, y))
             out.append(f)
     else:
-        order = _order_columns(text) if kind == "laser_write" else _order_strokes(text)
+        order = _order_strokes(text) if kind == "laser_cut" else _order_columns(text)
         n = len(order)
         target = CUT_STEPS if kind == "laser_cut" else WRITE_STEPS
         per = -(-n // target) if n > target else 1
@@ -298,6 +298,9 @@ def _laser(kind: str, text: Frame, entering: bool, rng: random.Random) -> list[F
             x, y = order[done - 1]
             if kind == "laser_write":
                 _line(f, BEAM_X, BEAM_Y, x, y)
+            elif kind == "laser_beam":  # level, from the right edge
+                for bx in range(x, WIDTH):
+                    _set(f, bx, y)
             else:
                 _set(f, x, y)
                 if rng.randrange(100) < 60:
@@ -706,7 +709,7 @@ ANIMATIONS = {
 
 # ================================================================= player
 
-LASERS = ("laser_write", "laser_scan", "laser_cut")
+LASERS = ("laser_write", "laser_scan", "laser_cut", "laser_beam")
 # Parola effects whose look the preview copies step for step.
 EXACT = {"no_effect", "print", "scroll_left", "scroll_right", "scroll_up", "scroll_down", "wipe",
          "wipe_cursor", "opening", "opening_cursor", "closing", "closing_cursor", "slice", *LASERS}

@@ -24,7 +24,7 @@ def test_nice_names():
 def test_demo_has_one_item_per_effect():
     items = demo_items()
     texts = [i for i in items if i["type"] == "text" and i.get("overlay", "none") == "none"]
-    assert len(texts) == 48  # 49 effects minus "no_effect"
+    assert len(texts) == 49  # 50 effects minus "no_effect"
     assert len([i for i in items if i["type"] == "animation"]) == 8
     assert len([i for i in items if i.get("overlay", "none") != "none"]) == 4
     assert items[0]["animation"] == "matrix_reveal"

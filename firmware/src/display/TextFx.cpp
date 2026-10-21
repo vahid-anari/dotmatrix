@@ -17,7 +17,8 @@ void TextFx::begin(const Frame& text, FxKind kind, bool in) {
   _step = 0;
   _n = 0;
   switch (kind) {
-    case FxKind::LaserWrite: orderColumns(); break;
+    case FxKind::LaserWrite:
+    case FxKind::LaserBeam: orderColumns(); break;
     case FxKind::LaserCut: orderStrokes(); break;
     default: break;
   }
@@ -128,6 +129,17 @@ bool TextFx::step(Frame& out) {
       drawPixels(out, done);
       uint16_t last = (done < _n ? done : _n) - 1;
       line(out, BEAM_X, BEAM_Y, _order[last] / 8, _order[last] % 8);
+      break;
+    }
+
+    case FxKind::LaserBeam: {
+      // Like laser write, but the beam comes level from the right edge,
+      // always at the height of the dot it's drawing.
+      uint16_t done = (s + 1) * _perStep;
+      drawPixels(out, done);
+      uint16_t last = (done < _n ? done : _n) - 1;
+      int x = _order[last] / 8, y = _order[last] % 8;
+      for (int bx = x; bx < DISPLAY_WIDTH; bx++) out.set(bx, y);
       break;
     }
 

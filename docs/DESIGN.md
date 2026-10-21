@@ -108,8 +108,9 @@ Adding an animation means one file plus one line in the registry. Planned animat
 | `laser_write` | A beam from the bottom-left corner draws the text column by column (out: erases it in the same order) |
 | `laser_scan` | A vertical beam with sparks sweeps across; the text appears behind it (out: disappears ahead of it) |
 | `laser_cut` | A cutting dot traces each letter stroke by stroke (out: cuts it away) |
+| `laser_beam` | Like `laser_write`, but the beam comes level from the right edge, always at the height of the dot it draws |
 
-Write and cut draw one pixel per step, but never take more than 64 and 80 steps: a text with more lit pixels gets several per step, so long texts don't take ages. Scan always takes 66 steps. `speed_in`/`speed_out` are the ms per step, as for Parola effects. On a text wider than the display, the lasers work on the part that's showing.
+Write, beam and cut draw one pixel per step, but never take more than 64, 64 and 80 steps: a text with more lit pixels gets several per step, so long texts don't take ages. Scan always takes 66 steps. `speed_in`/`speed_out` are the ms per step, as for Parola effects. On a text wider than the display, the lasers work on the part that's showing.
 
 **How a text item plays.** Without our effects or an overlay, Parola plays the whole item (in → pause → out), as before. Otherwise it plays in three phases, each drawn by whoever does it: in (Parola, or TextFx), pause (our frames, with the overlay), out (Parola, or TextFx). Our frames put the text exactly where Parola does (`MD_PZone::calcTextLimits`: centred text leans right by half a column; and like Parola, no gap after an empty glyph, such as the second byte of some UTF-8 letters), so the hand-overs don't show. A text wider than the display rests at the left edge, except after `scroll_left` in: Parola stops once the last column has come in, so the end of the text is showing. An overlay needs the text to fit on the display; on a longer text it's ignored. "None" as an entry effect shows the text at once (Parola's `PA_NO_EFFECT` would skip it).
 
@@ -304,7 +305,7 @@ Local builds report `X.Y.Z-dev`, which sorts just below release `X.Y.Z`.
 | **M1: Firmware core** | PlatformIO project, display wrapper, TextMode + ClockMode, animation framework with `matrix_rain` and `matrix_reveal`, LittleFS, Wi-Fi + setup portal, mDNS, NTP, WebSocket API, watchdog |
 | **M2: App core** | Device client, Home, Texts (+ live preview, animation items), Clock, Settings, fake device |
 | **M3: Extras** | Stopwatch and timer on the device, OTA from the app, app update check, CI releases (night dimming already came with M1) |
-| **M4: Effects** | Remaining animations (`starfield`, `life`, `fireworks`, `equalizer`, `snake`, `sprite_run`), overlays (`wave`, `sparkle`, `pulse`, `border`), laser effects (`laser_write`, `laser_scan`, `laser_cut`). Animated preview in the app editor (§7) |
+| **M4: Effects** | Remaining animations (`starfield`, `life`, `fireworks`, `equalizer`, `snake`, `sprite_run`), overlays (`wave`, `sparkle`, `pulse`, `border`), laser effects (`laser_write`, `laser_scan`, `laser_cut`, `laser_beam`). Animated preview in the app editor (§7) |
 | **M5: Sensors** | Temperature/humidity mode, weather from the internet |
 
 ## 10. Open questions

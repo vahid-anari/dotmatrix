@@ -85,6 +85,7 @@ static void testItems() {
 
   // M4: lasers, overlays, sprite_run's sprite. Old effect indexes don't move.
   CHECK(effectIndex("sprite_hourglass") == 45 && effectIndex("laser_write") == 46);
+  CHECK(effectIndex("laser_beam") == 49 && effectAt(49).fx == FxKind::LaserBeam);
   CHECK(parseItem(R"({"text":"Hi","effect_in":"laser_cut","effect_out":"laser_scan","overlay":"wave"})", it, err));
   CHECK(effectAt(it.effectIn).fx == FxKind::LaserCut && effectAt(it.effectOut).fx == FxKind::LaserScan);
   CHECK(strcmp(overlayId(it.overlay), "wave") == 0);
@@ -266,7 +267,7 @@ static void testLasers() {
   Display display;
   Frame text;
   display.drawText(text, "LASER", Align::Center);
-  for (FxKind k : {FxKind::LaserWrite, FxKind::LaserScan, FxKind::LaserCut}) {
+  for (FxKind k : {FxKind::LaserWrite, FxKind::LaserScan, FxKind::LaserCut, FxKind::LaserBeam}) {
     static TextFx fx;  // big (1 KB of pixel order), like the one in TextMode
     Frame f;
     // In: ends with exactly the text, in a bounded number of steps.
