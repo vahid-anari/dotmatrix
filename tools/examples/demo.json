@@ -1,0 +1,10 @@
+{
+  "name": "Demo",
+  "items": [
+    {"type": "animation", "animation": "matrix_reveal", "text": "WELCOME", "duration": 9000},
+    {"text": "Hello!", "effect_in": "sprite_pacman", "effect_out": "scroll_up", "pause": 1500},
+    {"text": "Dot Matrix", "effect_in": "slice", "effect_out": "dissolve", "speed_in": 10, "pause": 1200},
+    {"type": "animation", "animation": "matrix_rain", "duration": 6000, "params": {"density": 24}},
+    {"text": "v0.9", "effect_in": "opening", "effect_out": "closing", "pause": 800, "invert": true}
+  ]
+}
