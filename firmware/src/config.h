@@ -2,7 +2,10 @@
 #include <Arduino.h>
 
 // ---- Version -------------------------------------------------------------
-#define FW_VERSION "0.9.0"
+// Release builds set this from the git tag (see .github/workflows/build.yml).
+#ifndef FW_VERSION
+#define FW_VERSION "0.2.0-dev"
+#endif
 #define PROTO_VERSION 1
 
 // ---- Hardware ------------------------------------------------------------

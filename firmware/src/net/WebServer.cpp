@@ -141,17 +141,23 @@ static void handleWifi(AsyncWebServerRequest* r) {
 }
 
 static size_t otaBytes = 0;
+static AsyncWebServerRequest* otaOwner = nullptr;  // the request whose upload is being flashed
 
 static void otaAbort(const char* why) {
   if (Update.isRunning()) Update.abort();
   if (otaFlag) LOG("ota: aborted (%s)", why);
   otaFlag = false;
   otaBytes = 0;
+  otaOwner = nullptr;
 }
 
 static void handleUpdateUpload(AsyncWebServerRequest* r, const String& filename, size_t index,
                                uint8_t* data, size_t len, bool final) {
   if (index == 0) {
+    if (otaFlag) {  // another upload is still running: ignore this one
+      LOG("ota: busy, second upload refused");
+      return;
+    }
     otaAbort("new upload");  // clears a previous upload that never finished
     LOG("ota: receiving %s", filename.c_str());
     if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
@@ -159,12 +165,13 @@ static void handleUpdateUpload(AsyncWebServerRequest* r, const String& filename,
       return;
     }
     otaFlag = true;
+    otaOwner = r;
     // If the phone drops the connection mid-upload, don't stay stuck.
-    r->onDisconnect([]() {
-      if (otaFlag && !rebootFlag) otaAbort("client disconnected");
+    r->onDisconnect([r]() {
+      if (otaOwner == r && !rebootFlag) otaAbort("client disconnected");
     });
   }
-  if (!Update.isRunning()) return;
+  if (r != otaOwner || !Update.isRunning()) return;  // not the upload being flashed
   if (Update.write(data, len) != len) {
     LOG("ota: write failed: %s", Update.errorString());
     otaAbort("write failed");
@@ -179,6 +186,10 @@ static void handleUpdateUpload(AsyncWebServerRequest* r, const String& filename,
 }
 
 static void handleUpdateDone(AsyncWebServerRequest* r) {
+  if (otaFlag && r != otaOwner) {
+    r->send(409, "application/json", "{\"ok\":false,\"error\":\"busy\"}");
+    return;
+  }
   // Success only if a file actually arrived and verified.
   bool ok = otaBytes > 0 && Update.isFinished() && !Update.hasError();
   r->send(ok ? 200 : 500, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false}");
@@ -187,6 +198,7 @@ static void handleUpdateDone(AsyncWebServerRequest* r) {
   else
     otaAbort("no valid file");
   otaFlag = false;
+  otaOwner = nullptr;
 }
 
 void WebServer::begin() {

@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from core import discovery, preview
+from core import discovery, preview, updates
 from core.device import Device, DeviceError
 from core.items import DEMO_NAME, demo_items, nice_name, normalized, summary
 from core.library import Library
@@ -135,3 +135,74 @@ def test_probe_rejects_non_display():
         assert await discovery.probe("127.0.0.1", 9, timeout=0.2) is None
 
     asyncio.run(run())
+
+
+# ---------------------------------------------------------------- updates
+
+def test_versions():
+    assert updates.is_newer("0.2.0", "0.1.9")
+    assert updates.is_newer("0.10.0", "0.9.0")
+    assert updates.is_newer("0.2.0", "0.2.0-dev")  # a release beats its dev build
+    assert not updates.is_newer("0.2.0", "0.2.0")
+    assert updates.is_newer("0.2.0", "dev-1a2b3c4")  # CI builds from main
+    assert updates.parse_version("v1.2.3") == (1, 2, 3, 1)
+
+
+def _image(chip=5, desc=True, size=100_000):
+    b = bytearray(size)
+    b[0] = 0xE9
+    b[12:14] = chip.to_bytes(2, "little")
+    if desc:
+        b[0x20:0x24] = bytes.fromhex("3254cdab")
+    return bytes(b)
+
+
+def test_firmware_image_check():
+    assert updates.check_firmware_image(_image()) is None
+    assert "different ESP32" in updates.check_firmware_image(_image(chip=0))
+    assert "full flash image" in updates.check_firmware_image(_image(desc=False))
+    assert updates.check_firmware_image(b"PK" + b"\0" * 100_000)  # a zip, not firmware
+    assert updates.check_firmware_image(b"\xe9")  # too small
+
+
+def test_time_formats_match_firmware():
+    from ui.tools import fmt_stopwatch, fmt_timer  # same cases as firmware/test_host
+    assert fmt_stopwatch(83123) == "01:23.12"
+    assert fmt_stopwatch(3723000) == "1:02:03"
+    assert fmt_timer(1) == "00:01" and fmt_timer(0) == "00:00"
+    assert fmt_timer(3600000) == "1:00:00"
+
+
+def test_upload_to_fake_device(tmp_path):
+    """The real upload code against an HTTP server that checks the multipart body."""
+    import http.server
+    import threading
+
+    got = {}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            n = int(self.headers["Content-Length"])
+            body = self.rfile.read(n)
+            got["ctype"] = self.headers["Content-Type"]
+            got["body"] = body
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'{"ok":true}')
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    data = b"\xe9" + bytes(range(256)) * 400
+    steps = []
+
+    async def run():
+        await updates.upload_firmware(f"127.0.0.1:{srv.server_port}", data, steps.append)
+
+    asyncio.run(run())
+    srv.shutdown()
+    assert got["ctype"].startswith("multipart/form-data; boundary=")
+    assert data in got["body"] and b'name="firmware"' in got["body"]
+    assert steps and steps[-1] == 1.0

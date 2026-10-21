@@ -7,13 +7,13 @@ import logging
 
 import flet as ft
 
-from core import discovery
+from core import discovery, updates
 from core.device import Device, DeviceError
 from core.library import Library
 
 from . import theme
 
-APP_VERSION = "0.1.1"
+APP_VERSION = "0.2.0"  # must match app/pyproject.toml and the release tag (CI checks)
 log = logging.getLogger("app")
 
 
@@ -26,6 +26,8 @@ class App:
         self._failures = 0
         self._refreshables: list = []  # screens currently on screen
         self.root = None  # set by main
+        self.latest: updates.Release | None = None  # newest GitHub release, once checked
+        self.update_error = ""
 
         self.device.listen(self._on_device)
 
@@ -36,6 +38,37 @@ class App:
             self.device.start(host)
         else:
             self.page.run_task(self.find_device)
+        self.page.run_task(self.check_updates)
+
+    # --------------------------------------------------------------- updates
+    async def check_updates(self) -> bool:
+        """Look up the newest release on GitHub. Returns True on success."""
+        try:
+            self.latest = await updates.latest_release()
+            self.update_error = ""
+        except updates.NoReleases:
+            self.latest = updates.Release(version="", page="")
+            self.update_error = ""
+        except Exception as ex:  # noqa: BLE001 — offline, rate-limited
+            log.info("update check failed: %s", ex)
+            self.update_error = "Couldn't reach GitHub. Check the phone's internet connection."
+            return False
+        finally:
+            self.refresh()
+        return True
+
+    @property
+    def app_update(self) -> bool:
+        return bool(self.latest and self.latest.apk_url and updates.is_newer(self.latest.version, APP_VERSION))
+
+    @property
+    def firmware_update(self) -> bool:
+        fw = self.device.hello.get("fw", "")
+        if not (self.device.connected and self.latest and self.latest.firmware_url):
+            return False
+        # Firmware from before M3 has no stopwatch/timer and reported "0.9.0",
+        # which looks newer than the first releases: offer it the update anyway.
+        return updates.is_newer(self.latest.version, fw) or not self.device.has_tools
 
     async def find_device(self, progress=None) -> list[dict]:
         """Look for displays; connects to the first one found. Returns all found."""

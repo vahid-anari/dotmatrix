@@ -17,6 +17,7 @@ from ui.clock import ClockTab
 from ui.home import HomeTab
 from ui.settings import SettingsTab
 from ui.texts import TextsTab
+from ui.tools import ToolsTab
 
 logging.basicConfig(level=os.getenv("DM_LOG", "WARNING"))
 
@@ -43,7 +44,8 @@ async def main(page: ft.Page):
         tab.refresh()
         page.update()
 
-    tabs.extend([HomeTab(app, open_settings=lambda: select(3)), TextsTab(app), ClockTab(app), SettingsTab(app)])
+    tabs.extend([HomeTab(app, open_settings=lambda: select(4)), TextsTab(app), ClockTab(app), ToolsTab(app),
+                 SettingsTab(app)])
 
     nav = ft.NavigationBar(
         selected_index=0,
@@ -54,6 +56,8 @@ async def main(page: ft.Page):
                                         label="Texts"),
             ft.NavigationBarDestination(icon=ft.Icons.SCHEDULE_OUTLINED, selected_icon=ft.Icons.SCHEDULE,
                                         label="Clock"),
+            ft.NavigationBarDestination(icon=ft.Icons.TIMER_OUTLINED, selected_icon=ft.Icons.TIMER,
+                                        label="Tools"),
             ft.NavigationBarDestination(icon=ft.Icons.SETTINGS_OUTLINED, selected_icon=ft.Icons.SETTINGS,
                                         label="Settings"),
         ],
@@ -73,9 +77,9 @@ async def main(page: ft.Page):
     app.start()
 
     async def ticker():
-        """Once a second, so clock previews run like the real display."""
+        """Four times a second, so clock and stopwatch previews run like the display."""
         while True:
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.25)
             current = tabs[nav.selected_index] if len(page.views) == 1 else None
             if current is not None and hasattr(current, "tick") and current.tick():
                 try:

@@ -10,6 +10,7 @@
 #include "../src/display/Effects.h"
 #include "../src/model/Item.h"
 #include "../src/model/Settings.h"
+#include "../src/modes/TimeFormat.h"
 
 static int failures = 0;
 #define CHECK(cond)                                                     \
@@ -179,11 +180,43 @@ static void testAnimations() {
   }
 }
 
+static void testTime() {
+  std::puts("stopwatch/timer");
+  char b[16];
+  formatStopwatch(0, b, sizeof(b));
+  CHECK(strcmp(b, "00:00.00") == 0);
+  formatStopwatch(83123, b, sizeof(b));
+  CHECK(strcmp(b, "01:23.12") == 0);
+  formatStopwatch(3723000, b, sizeof(b));
+  CHECK(strcmp(b, "1:02:03") == 0);
+  formatTimer(300000, b, sizeof(b));
+  CHECK(strcmp(b, "05:00") == 0);
+  formatTimer(1, b, sizeof(b));  // rounds up: never shows 00:00 before the end
+  CHECK(strcmp(b, "00:01") == 0);
+  formatTimer(0, b, sizeof(b));
+  CHECK(strcmp(b, "00:00") == 0);
+  formatTimer(3600000, b, sizeof(b));
+  CHECK(strcmp(b, "1:00:00") == 0);
+
+  // RunClock across the 49.7-day millis() wrap.
+  RunClock c;
+  uint32_t t0 = 0xFFFFFFFFu - 500;
+  c.start(t0);
+  CHECK(c.elapsed(t0 + 1500) == 1500);  // t0 + 1500 has wrapped past zero
+  c.pause(t0 + 1500);
+  CHECK(c.elapsed(t0 + 99999) == 1500);
+  c.start(t0 + 2000);
+  CHECK(c.elapsed(t0 + 2500) == 2000);
+  c.reset();
+  CHECK(c.elapsed(t0 + 3000) == 0 && !c.running);
+}
+
 int main(int argc, char** argv) {
   showFrames = argc > 1 && strcmp(argv[1], "--show") == 0;
   testItems();
   testSettings();
   testAnimations();
+  testTime();
   std::printf(failures ? "\n%d FAILED\n" : "\nall tests passed\n", failures);
   return failures ? 1 : 0;
 }

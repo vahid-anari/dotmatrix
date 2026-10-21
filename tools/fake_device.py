@@ -4,25 +4,23 @@ fake_device — a stand-in for the ESP32 that speaks protocol v1 (docs/DESIGN.md
 
 Lets the app be developed and tested without hardware:
 
-    pip install websockets
+    pip install aiohttp
     python tools/fake_device.py            # ws://127.0.0.1:8080/ws
     python tools/fake_device.py --port 8081 --host 0.0.0.0
 
-The effect and animation lists are read from the firmware source, so they always
-match what the real device supports. Every command is printed as it arrives.
+Serves the same endpoints as the device on one port: /ws, /api/status and
+POST /update (firmware upload; the file is checked and discarded). The effect
+and animation lists are read from the firmware source, so they always match
+what the real device supports. Every command is printed as it arrives.
 """
 import argparse
 import asyncio
 import json
 import re
 import time
-from http import HTTPStatus
 from pathlib import Path
 
-from websockets.asyncio.server import serve
-from websockets.http11 import Response
-from websockets.datastructures import Headers
-from websockets.exceptions import ConnectionClosed
+from aiohttp import WSMsgType, web
 
 ROOT = Path(__file__).resolve().parent.parent
 FW = ROOT / "firmware" / "src"
@@ -38,10 +36,10 @@ def read_ids(path, pattern):
 EFFECTS = read_ids(FW / "display" / "Effects.cpp", r'\{"([a-z0-9_]+)", PA_')
 ANIMATIONS = read_ids(FW / "animations" / "Registry.cpp", r'\{"([a-z0-9_]+)", &')
 MAX_ITEMS, MAX_TEXT = 100, 128
-FW_VERSION = "0.9.0-fake"
+fw_version = "0.2.0-fake"
 
 START = time.monotonic()
-clients = set()
+clients: set[web.WebSocketResponse] = set()
 state = {
     "mode": "text",
     "playlist": {"name": "", "items": []},
@@ -59,6 +57,40 @@ settings = {
 }
 
 
+def now_ms() -> int:
+    return int(time.monotonic() * 1000)
+
+
+class RunClock:
+    """Same bookkeeping as firmware/src/modes/TimeFormat.h."""
+
+    def __init__(self):
+        self.running, self.since, self.banked = False, 0, 0
+
+    def elapsed(self):
+        return self.banked + (now_ms() - self.since if self.running else 0)
+
+    def start(self):
+        if not self.running:
+            self.since, self.running = now_ms(), True
+
+    def pause(self):
+        if self.running:
+            self.banked += now_ms() - self.since
+            self.running = False
+
+    def reset(self):
+        self.running, self.banked = False, 0
+
+
+stopwatch = RunClock()
+timer = {"clock": RunClock(), "total": 5 * 60 * 1000, "done": False}
+
+
+def timer_remaining():
+    return max(0, timer["total"] - timer["clock"].elapsed())
+
+
 def log(*a):
     print(time.strftime("%H:%M:%S"), *a, flush=True)
 
@@ -67,10 +99,11 @@ def night_active():
     n = settings["night"]
     if not n["enabled"]:
         return False
-    m = time.localtime().tm_hour * 60 + time.localtime().tm_min
+    t = time.localtime()
+    m = t.tm_hour * 60 + t.tm_min
     f = int(n["from"][:2]) * 60 + int(n["from"][3:])
-    t = int(n["to"][:2]) * 60 + int(n["to"][3:])
-    return (f <= m < t) if f <= t else (m >= f or m < t)
+    to = int(n["to"][:2]) * 60 + int(n["to"][3:])
+    return (f <= m < to) if f <= to else (m >= f or m < to)
 
 
 def state_msg():
@@ -94,7 +127,16 @@ def state_msg():
         "free_heap": 154000,
         "min_free_heap": 148000,
         "last_reset": "power_on",
+        "stopwatch": {"ms": stopwatch.elapsed(), "running": stopwatch.running},
+        "timer": {"remaining_ms": timer_remaining(), "total_ms": timer["total"],
+                  "running": timer["clock"].running, "done": timer["done"]},
     }
+
+
+def hello_msg():
+    return {"evt": "hello", "proto": 1, "fw": fw_version, "name": settings["hostname"],
+            "max_items": MAX_ITEMS, "max_text": MAX_TEXT, "effects": EFFECTS,
+            "animations": ANIMATIONS, "modes": ["text", "clock", "off", "stopwatch", "timer"]}
 
 
 def check_item(it):
@@ -112,7 +154,7 @@ def check_item(it):
 
 async def send(ws, msg):
     try:
-        await ws.send(json.dumps(msg))
+        await ws.send_str(json.dumps(msg))
     except Exception:  # noqa: BLE001
         pass
 
@@ -145,9 +187,11 @@ async def handle(ws, raw):
         await ack()
         await send(ws, state_msg())
     elif cmd == "set_mode":
-        if msg.get("mode") not in ("text", "clock", "off"):
+        if msg.get("mode") not in ("text", "clock", "off", "stopwatch", "timer"):
             return await ack(False, "unknown mode")
-        state["mode"] = settings["mode"] = msg["mode"]
+        state["mode"] = msg["mode"]
+        if msg["mode"] in ("text", "clock", "off"):
+            settings["mode"] = msg["mode"]
         state["preview"] = None
         log("mode:", msg["mode"])
         await ack()
@@ -203,67 +247,147 @@ async def handle(ws, raw):
         await ack()
         await broadcast({"evt": "settings", "settings": settings})
         await broadcast(state_msg())
+    elif cmd == "stopwatch":
+        action = msg.get("action")
+        if action not in ("start", "pause", "reset", "show"):
+            return await ack(False, "action must be start, pause, reset or show")
+        if action != "show":
+            getattr(stopwatch, action)()
+        state["mode"], state["preview"] = "stopwatch", None
+        log("stopwatch:", action, stopwatch.elapsed(), "ms")
+        await ack()
+        await broadcast(state_msg())
+    elif cmd == "timer":
+        action, secs = msg.get("action"), msg.get("seconds")
+        c = timer["clock"]
+        if action in ("start", "set") and secs is not None:
+            if not isinstance(secs, (int, float)) or not 0 < secs <= 86400:
+                return await ack(False, "seconds must be 1-86400")
+            timer["total"], timer["done"] = int(secs * 1000), False
+            c.reset()
+        elif action == "set":
+            return await ack(False, "seconds must be 1-86400")
+        if action == "start":
+            if timer["done"]:
+                c.reset()
+                timer["done"] = False
+            c.start()
+        elif action == "pause":
+            c.pause()
+        elif action == "reset":
+            c.reset()
+            timer["done"] = False
+        elif action not in ("set", "show"):
+            return await ack(False, "action must be start, set, pause, reset or show")
+        state["mode"], state["preview"] = "timer", None
+        log("timer:", action, timer_remaining(), "ms left")
+        await ack()
+        await broadcast(state_msg())
     elif cmd == "set_wifi":
         log("set_wifi:", msg.get("ssid"))
         await ack()
     elif cmd == "reboot":
         log("reboot requested (ignored)")
         await ack()
-    elif cmd in ("stopwatch", "timer"):
-        await ack(False, "not available in this firmware yet")
     else:
         await ack(False, "unknown command")
 
 
-async def connection(ws):
+async def ws_handler(request):
+    ws = web.WebSocketResponse(heartbeat=10, max_msg_size=2**20)
+    await ws.prepare(request)
     clients.add(ws)
     log(f"client connected ({len(clients)})")
-    await send(ws, {"evt": "hello", "proto": 1, "fw": FW_VERSION, "name": settings["hostname"],
-                    "max_items": MAX_ITEMS, "max_text": MAX_TEXT, "effects": EFFECTS,
-                    "animations": ANIMATIONS, "modes": ["text", "clock", "off"]})
+    await send(ws, hello_msg())
     await send(ws, {"evt": "settings", "settings": settings})
     await send(ws, state_msg())
     try:
-        async for raw in ws:
-            await handle(ws, raw)
-    except ConnectionClosed:
-        pass  # client went away without a close frame (app killed, Wi-Fi lost)
+        async for m in ws:
+            if m.type == WSMsgType.TEXT:
+                await handle(ws, m.data)
     finally:
         clients.discard(ws)
         if state["preview_client"] is ws and state["preview"] is not None:
             state["preview"] = None
             log("preview end (client left)")
         log(f"client disconnected ({len(clients)})")
+    return ws
 
 
-def http(conn, request):
-    """Serve /api/status like the device; let /ws through to the WebSocket."""
-    if request.path == "/ws":
-        return None
-    if request.path == "/api/status":
-        body = json.dumps({"name": settings["hostname"], "fw": FW_VERSION, "wifi": "online", "ip": "127.0.0.1"})
-        return Response(HTTPStatus.OK, "OK", Headers({"Content-Type": "application/json"}), body.encode())
-    return Response(HTTPStatus.NOT_FOUND, "Not Found", Headers(), b"not found")
+async def status_handler(request):
+    return web.json_response({"name": settings["hostname"], "fw": fw_version, "wifi": "online",
+                              "ip": "127.0.0.1"})
+
+
+async def update_handler(request):
+    """Like the device: accept a multipart firmware upload, then 'reboot'."""
+    reader = await request.multipart()
+    size, head = 0, b""
+    async for part in reader:
+        while chunk := await part.read_chunk(64 * 1024):
+            if not head:
+                head = chunk[:1]
+            size += len(chunk)
+    # ESP32 app images start with the magic byte 0xE9.
+    if size == 0 or head != b"\xe9":
+        log(f"update rejected ({size} bytes, not an ESP32 image)")
+        return web.json_response({"ok": False}, status=500)
+    log(f"update received: {size} bytes; restarting")
+    asyncio.get_running_loop().call_later(0.5, lambda: asyncio.ensure_future(fake_reboot()))
+    return web.json_response({"ok": True})
+
+
+async def fake_reboot():
+    global fw_version
+    for ws in list(clients):
+        await ws.close()
+    fw_version = request_version_after_update
+    log(f"rebooted, now running {fw_version}")
+
+
+request_version_after_update = "0.2.0"
 
 
 async def ticker():
-    """Advance the playlist index and broadcast state, like the device."""
+    """Advance the playlist index, finish the timer, broadcast state."""
+    last = 0.0
     while True:
-        await asyncio.sleep(5)
-        items = state["playlist"]["items"]
-        if state["mode"] == "text" and items and state["preview"] is None:
-            state["index"] = (state["index"] + 1) % len(items)
-        await broadcast(state_msg())
+        await asyncio.sleep(0.25)
+        if timer["clock"].running and timer_remaining() == 0:
+            timer["clock"].pause()
+            timer["clock"].banked = timer["total"]
+            timer["done"] = True
+            state["mode"], state["preview"] = "timer", None
+            log("timer: done")
+            await broadcast(state_msg())
+        if time.monotonic() - last >= 5:
+            last = time.monotonic()
+            items = state["playlist"]["items"]
+            if state["mode"] == "text" and items and state["preview"] is None:
+                state["index"] = (state["index"] + 1) % len(items)
+            await broadcast(state_msg())
 
 
 async def main():
+    global request_version_after_update
     p = argparse.ArgumentParser(description="Fake Dot Matrix device")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8080)
+    p.add_argument("--fw", default=fw_version, help="firmware version to report")
+    p.add_argument("--fw-after-update", default="0.2.0", help="version reported after an upload")
     a = p.parse_args()
-    log(f"fake device on ws://{a.host}:{a.port}/ws  ({len(EFFECTS)} effects, {len(ANIMATIONS)} animations)")
-    async with serve(connection, a.host, a.port, process_request=http, max_size=2**20):
-        await ticker()
+    globals()["fw_version"] = a.fw
+    request_version_after_update = a.fw_after_update
+
+    app = web.Application(client_max_size=4 * 2**20)
+    app.add_routes([web.get("/ws", ws_handler), web.get("/api/status", status_handler),
+                    web.post("/update", update_handler)])
+    runner = web.AppRunner(app)
+    await runner.setup()
+    await web.TCPSite(runner, a.host, a.port).start()
+    log(f"fake device {fw_version} on ws://{a.host}:{a.port}/ws  ({len(EFFECTS)} effects, "
+        f"{len(ANIMATIONS)} animations)")
+    await ticker()
 
 
 if __name__ == "__main__":

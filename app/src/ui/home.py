@@ -6,6 +6,7 @@ import flet as ft
 from core import preview
 from core.items import new_text_item
 
+from .tools import fmt_stopwatch, fmt_timer
 from .widgets import LabeledSlider, heading, muted, section, status_dot
 
 MODE_LABELS = {"text": "Texts", "clock": "Clock", "off": "Off"}
@@ -67,12 +68,17 @@ class HomeTab:
         self._showing_message = False
 
         self.conn = ConnectionLine(app, lambda e: open_settings())
+        self.update_note = ft.Container(
+            ft.Row([ft.Icon(ft.Icons.SYSTEM_UPDATE_ALT, size=16, color=ft.Colors.PRIMARY),
+                    ft.Text(size=13, color=ft.Colors.PRIMARY)], spacing=6),
+            on_click=lambda e: open_settings(), visible=False, padding=ft.Padding.symmetric(vertical=2))
         self.now_image = ft.Image(src=preview.render_text(""), fit=ft.BoxFit.CONTAIN, gapless_playback=True)
         self.now_caption = muted("")
         self.modes = ft.SegmentedButton(
             segments=[ft.Segment(value=k, label=v, icon=ft.Icon(i)) for (k, v), i in
                       zip(MODE_LABELS.items(), (ft.Icons.TEXT_FIELDS, ft.Icons.SCHEDULE, ft.Icons.POWER_SETTINGS_NEW))],
             selected=["text"], on_change=self._mode_changed, show_selected_icon=False,
+            allow_empty_selection=True,  # nothing selected while the stopwatch or timer shows
         )
         self.brightness = LabeledSlider("Level", 6, 0, 15, 1, lambda v: f"{int(v)} of 15",
                                         self._brightness_changed, self._brightness_released)
@@ -83,7 +89,7 @@ class HomeTab:
         self.facts = ft.Column(spacing=6)
 
         self.view = ft.Column([
-            ft.Column([heading("Dot Matrix"), self.conn], spacing=2),
+            ft.Column([heading("Dot Matrix"), self.conn, self.update_note], spacing=2),
             ft.Container(self.now_image, bgcolor="#120A09", padding=10, border_radius=12),
             self.now_caption,
             ft.Container(height=4),
@@ -101,12 +107,17 @@ class HomeTab:
         app, d = self.app, self.app.device
         st = d.state
         self.conn.refresh()
+        what = [w for w, yes in (("app", app.app_update), ("display", app.firmware_update)) if yes]
+        self.update_note.visible = bool(what)
+        if what:
+            self.update_note.content.controls[1].value = (
+                f"Version {app.latest.version} is available for the {' and the '.join(what)}. Tap to update.")
         on = d.connected
         for c in (self.modes, self.brightness.slider, self.message, self.message_btn):
             c.disabled = not on
 
         mode = st.get("mode", "text")
-        self.modes.selected = [mode]
+        self.modes.selected = [mode] if mode in MODE_LABELS else []
         self.now_image.src, self.now_caption.value = self._now(mode, st)
 
         if time.monotonic() - self._brightness_touched > 2:
@@ -141,6 +152,12 @@ class HomeTab:
             return preview.render_text(""), "The display is switched off."
         if mode == "clock":
             return preview.render_text(self.clock_text()), "Showing the clock."
+        if mode == "stopwatch":
+            return preview.render_text(fmt_stopwatch(d.stopwatch_ms())), "Showing the stopwatch."
+        if mode == "timer":
+            done = st.get("timer", {}).get("done")
+            return preview.render_text(fmt_timer(d.timer_remaining_ms())), \
+                "Time's up." if done else "Showing the timer."
         group = self.app.active_group()
         name = st.get("playlist") or ""
         idx, n = st.get("index", -1), st.get("items", 0)
@@ -158,16 +175,22 @@ class HomeTab:
         return f"{hh}:{t.tm_min:02d}:{t.tm_sec:02d}" if c.get("seconds", True) else f"{hh}:{t.tm_min:02d}"
 
     def tick(self):
-        """Called every second so the clock preview runs like the real one."""
-        if self.app.device.state.get("mode") == "clock" and self.app.device.connected \
-                and not self.app.device.state.get("previewing"):
-            self.now_image.src = preview.render_text(self.clock_text())
+        """Called several times a second so live previews run like the real display."""
+        d = self.app.device
+        if d.connected and not d.state.get("previewing") and d.state.get("mode") in ("clock", "stopwatch", "timer"):
+            self.now_image.src, _ = self._now(d.state.get("mode"), d.state)
             return True
         return False
 
     # --------------------------------------------------------------- actions
     def _mode_changed(self, e):
-        mode = next(iter(e.control.selected), "text")
+        if not e.control.selected:
+            # Tapping the selected segment again would leave nothing selected.
+            mode = self.app.device.state.get("mode")
+            e.control.selected = [mode] if mode in MODE_LABELS else []
+            e.control.update()
+            return
+        mode = next(iter(e.control.selected))
         d = self.app.device
         if mode == "text" and not d.state.get("items"):
             group = self.app.library.groups[0] if self.app.library.groups else None
