@@ -42,6 +42,14 @@ def apply(page: ft.Page):
     page.theme_mode = ft.ThemeMode.SYSTEM
 
 
+# The choices in Settings → Appearance; "system" follows the phone.
+MODES = {"system": ft.ThemeMode.SYSTEM, "light": ft.ThemeMode.LIGHT, "dark": ft.ThemeMode.DARK}
+
+
+def set_mode(page: ft.Page, key: str):
+    page.theme_mode = MODES.get(key, ft.ThemeMode.SYSTEM)
+
+
 def palette(page: ft.Page) -> dict:
     dark = page.theme_mode == ft.ThemeMode.DARK or (
         page.theme_mode == ft.ThemeMode.SYSTEM and page.platform_brightness == ft.Brightness.DARK)

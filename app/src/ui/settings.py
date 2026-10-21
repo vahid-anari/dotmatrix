@@ -6,6 +6,7 @@ import flet as ft
 from core import updates
 from core.device import PROTO_VERSION
 
+from . import theme
 from .app import APP_VERSION
 from .widgets import heading, muted, section
 
@@ -59,6 +60,13 @@ class SettingsTab:
 
         self.file_picker = ft.FilePicker()
 
+        self.theme = ft.SegmentedButton(
+            segments=[ft.Segment(value="system", label="Phone", icon=ft.Icons.SMARTPHONE),
+                      ft.Segment(value="light", label="Light", icon=ft.Icons.LIGHT_MODE),
+                      ft.Segment(value="dark", label="Dark", icon=ft.Icons.DARK_MODE)],
+            selected=[app.library.prefs.get("theme", "system")], show_selected_icon=False,
+            on_change=self._theme_changed)
+
         self.view = ft.Column([
             heading("Settings"),
             section("Connection", self.status, ft.Row([self.address, self.connect_btn]),
@@ -70,6 +78,7 @@ class SettingsTab:
                     ft.Row([ft.OutlinedButton("Export", icon=ft.Icons.UPLOAD_FILE, on_click=self._export),
                             ft.OutlinedButton("Import", icon=ft.Icons.FILE_OPEN, on_click=self._import)], wrap=True),
                     note="Save all groups to a file, or add groups from one."),
+            section("Appearance", self.theme, note="Phone: light or dark, as the phone is set."),
             section("Updates", self.upd_status, self.app_upd, self.fw_upd, self.fw_progress, self.fw_step,
                     self.upd_check,
                     note="New versions come from this project's releases on GitHub."),
@@ -127,6 +136,13 @@ class SettingsTab:
         self.app_upd.content = f"Download app {latest.version}" if latest else ""
         self.fw_upd.visible = app.firmware_update
         self.fw_upd.content = f"Install firmware {latest.version} on the display" if latest else ""
+
+    def _theme_changed(self, e):
+        key = next(iter(e.control.selected), "system")
+        self.app.library.prefs["theme"] = key
+        self.app.library.save()
+        theme.set_mode(self.app.page, key)
+        self.app.refresh()  # colours worked out in code (borders, the playing group)
 
     # --------------------------------------------------------------- connect
     def _connect(self, e):

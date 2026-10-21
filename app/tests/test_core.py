@@ -332,3 +332,20 @@ def test_player_tolerates_missing_values():
     p = player.Player({"type": "text", "text": None, "speed_in": None, "pause": None, "gap": None})
     p.frame(0)
     player.Player({"type": "animation", "animation": "snake", "duration": None, "params": None}).frame(500)
+
+
+def test_weather_places_and_text():
+    from core import weather
+    places = weather.parse_places({"results": [
+        {"name": "Burlington", "admin1": "Ontario", "country": "Canada", "latitude": 43.38621, "longitude": -79.83713},
+        {"name": "Nowhere"}]})
+    assert len(places) == 1
+    p = places[0]
+    assert p.label == "Burlington, Ontario" and p.full == "Burlington, Ontario, Canada"
+    assert (p.lat, p.lon) == (43.3862, -79.8371)
+    assert weather.parse_places({}) == []
+    long = weather.Place("Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch", "Wales", "UK", 0, 0)
+    assert len(long.label) <= weather.MAX_PLACE
+    assert weather.describe({"temp": 8.4, "units": "c", "text": "Rain"}) == "8°C, rain"
+    assert weather.describe({"temp": -0.6, "units": "f", "text": ""}) == "-1°F"
+    assert weather.describe(None) == ""

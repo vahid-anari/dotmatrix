@@ -12,9 +12,18 @@ struct Settings {
   struct Clock {
     bool format24h = true;
     bool seconds = true;
-    uint16_t dateEvery = 0;  // seconds, 0 = never
+    uint16_t dateEvery = 0;     // seconds, 0 = never
     char dateFormat[24] = "%a %b %d";
+    uint16_t weatherEvery = 0;  // seconds, 0 = never
   } clock;
+
+  // Outside weather, from Open-Meteo, for the place chosen in the app.
+  struct Weather {
+    char place[40] = "";  // empty = no place chosen
+    int32_t lat = 0;      // 1/10000 degree
+    int32_t lon = 0;
+    bool fahrenheit = false;
+  } weather;
 
   struct Night {
     bool enabled = false;

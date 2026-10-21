@@ -6,7 +6,8 @@ A 64×8 LED matrix (eight 8×8 MAX7219 modules) on an ESP32-C3, controlled over 
 - Effects over a text while it stays: wave, sparkle, pulse, border
 - Standalone animations: Matrix rain, Matrix reveal, starfield, Game of Life, fireworks, equalizer, snake, running sprite
 - The app's editor previews each item, animated, the way the display plays it
-- Clock synced from the internet, with automatic daylight saving and night dimming
+- Clock synced from the internet, with automatic daylight saving and night dimming; the date and the weather outside scroll past now and then
+- Light and dark look for the app, or as the phone is set
 - Stopwatch and countdown timer that run on the display
 - Works on its own after a power cut: the playlist is stored on the device
 - Wi-Fi setup from any phone; app and firmware updates from GitHub Releases, installed from the phone
@@ -26,7 +27,7 @@ A 64×8 LED matrix (eight 8×8 MAX7219 modules) on an ESP32-C3, controlled over 
 | M2: App core | ✅ done, tested on a phone |
 | M3: Stopwatch, timer, updates from the app, CI releases | ✅ done, released as v0.2.0 |
 | M4: More animations, lasers, overlays, animated preview | ✅ written, tested on the PC (host tests, fake display) |
-| M5: Temperature/humidity, weather | planned |
+| M5: Outside weather in the clock | ✅ written (0.4.0); a temperature/humidity sensor later |
 
 ## Downloads
 

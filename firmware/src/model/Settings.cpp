@@ -53,10 +53,39 @@ bool settingsUpdate(Settings& s, JsonObjectConst o, const char*& err) {
       if (d < 0 || d > 3600) return err = "date_every must be 0-3600", false;
       n.clock.dateEvery = d;
     }
+    if (jsonIsNumber(c["weather_every"])) {
+      int d = jsonNum(c["weather_every"], 0);
+      if (d < 0 || d > 3600) return err = "weather_every must be 0-3600", false;
+      n.clock.weatherEvery = d;
+    }
     if (c["date_format"].is<const char*>()) {
       const char* f = c["date_format"];
       if (strlen(f) >= sizeof(n.clock.dateFormat)) return err = "date_format too long", false;
       strlcpy(n.clock.dateFormat, f, sizeof(n.clock.dateFormat));
+    }
+  }
+
+  JsonObjectConst w = o["weather"];
+  if (!w.isNull()) {
+    if (w["place"].is<const char*>()) {
+      const char* p = w["place"];
+      if (strlen(p) >= sizeof(n.weather.place)) return err = "weather.place too long", false;
+      strlcpy(n.weather.place, p, sizeof(n.weather.place));
+    }
+    if (jsonIsNumber(w["lat"])) {
+      float v = w["lat"].as<float>();
+      if (v < -90 || v > 90) return err = "weather.lat must be -90..90", false;
+      n.weather.lat = lroundf(v * 10000);
+    }
+    if (jsonIsNumber(w["lon"])) {
+      float v = w["lon"].as<float>();
+      if (v < -180 || v > 180) return err = "weather.lon must be -180..180", false;
+      n.weather.lon = lroundf(v * 10000);
+    }
+    if (w["units"].is<const char*>()) {
+      const char* u = w["units"];
+      if (strcmp(u, "c") && strcmp(u, "f")) return err = "weather.units must be c or f", false;
+      n.weather.fahrenheit = strcmp(u, "f") == 0;
     }
   }
 
@@ -95,6 +124,12 @@ void settingsToJson(const Settings& s, JsonObject o) {
   c["seconds"] = s.clock.seconds;
   c["date_every"] = s.clock.dateEvery;
   c["date_format"] = s.clock.dateFormat;
+  c["weather_every"] = s.clock.weatherEvery;
+  JsonObject w = o["weather"].to<JsonObject>();
+  w["place"] = s.weather.place;
+  w["lat"] = s.weather.lat / 10000.0;
+  w["lon"] = s.weather.lon / 10000.0;
+  w["units"] = s.weather.fahrenheit ? "f" : "c";
   JsonObject n = o["night"].to<JsonObject>();
   n["enabled"] = s.night.enabled;
   formatHHMM(s.night.from, buf, sizeof(buf));

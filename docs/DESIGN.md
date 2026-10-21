@@ -1,6 +1,6 @@
 # Dot Matrix Display — Design
 
-Status: v0.5 (2026-10-21), M1–M3 done and tested on hardware (release v0.2.0); M4 written
+Status: v0.6 (2026-10-21), M1–M4 done (release v0.3.1); outside weather written
 
 A 64×8 LED matrix (eight 8×8 MAX7219 modules) driven by an ESP32-C3, controlled from an Android app written in Python with Flet. This document records the decisions made so far and is the reference for both halves of the project.
 
@@ -208,12 +208,15 @@ Transport: WebSocket at `ws://dotmatrix.local/ws`, text frames, one JSON object 
  "ip": "192.168.1.50", "rssi": -58, "uptime": 123456, "free_heap": 182000,
  "min_free_heap": 170000, "last_reset": "power_on",
  "stopwatch": {"ms": 83120, "running": true},
- "timer": {"remaining_ms": 41000, "total_ms": 300000, "running": true, "done": false}}
+ "timer": {"remaining_ms": 41000, "total_ms": 300000, "running": true, "done": false},
+ "weather": {"temp": 8.4, "units": "c", "code": 61, "text": "Rain", "age": 420}}  // only with a reading
 ```
 
 Stopwatch and timer commands switch the display to that mode (not remembered across a reboot). Both keep running in the background when another mode is shown. When the timer reaches zero the display switches to it and blinks for a minute. Between `state` messages the app counts on from the last values, so its preview runs smoothly without extra traffic.
 
 The device sends `state` when it changes, plus once every 5 s. The `hello` lists let the app build its effect, animation, overlay and sprite pickers from what the firmware supports; firmware without `overlays` hides the overlay picker.
+
+**Weather.** With a place set, the display asks Open-Meteo (`http://api.open-meteo.com/v1/forecast`, free, no account) for the current temperature and WMO weather code every 15 minutes, or every 2 minutes after a failure, in a background task so a slow answer never stalls the display. Plain HTTP saves the TLS handshake; the data is public. The clock shows it like the date, as "8°C Rain" (° is character 0xB0 of the font), every `weather_every` seconds; when both are due, the date goes first. A reading older than 2 hours isn't shown. The app finds the place with Open-Meteo's place search, from the phone.
 
 HTTP on port 80: `/` setup page, `/api/status`, `/api/scan`, `POST /api/wifi` (form: `ssid`, `password`), `POST /update` (firmware `.bin`). The setup network is `DotMatrix-XXXX` with password `dotmatrix`.
 
@@ -252,7 +255,9 @@ Effect IDs are snake_case (`no_effect`, `print`, `scroll_up`, ... `sprite_pacman
 ```jsonc
 {
   "brightness": 8,
-  "clock": {"format_24h": true, "seconds": true, "date_every": 10, "date_format": "%a %b %d"},
+  "clock": {"format_24h": true, "seconds": true, "date_every": 10, "date_format": "%a %b %d",
+            "weather_every": 30},              // seconds, 0 = never (both)
+  "weather": {"place": "Burlington, Ontario", "lat": 43.3862, "lon": -79.8371, "units": "c"},  // since 0.4.0
   "night": {"enabled": true, "from": "23:00", "to": "07:00", "brightness": 1},
   "timezone": "EST5EDT,M3.2.0,M11.1.0"
 }
@@ -306,7 +311,7 @@ Local builds report `X.Y.Z-dev`, which sorts just below release `X.Y.Z`.
 | **M2: App core** | Device client, Home, Texts (+ live preview, animation items), Clock, Settings, fake device |
 | **M3: Extras** | Stopwatch and timer on the device, OTA from the app, app update check, CI releases (night dimming already came with M1) |
 | **M4: Effects** | Remaining animations (`starfield`, `life`, `fireworks`, `equalizer`, `snake`, `sprite_run`), overlays (`wave`, `sparkle`, `pulse`, `border`), laser effects (`laser_write`, `laser_scan`, `laser_cut`, `laser_beam`). Animated preview in the app editor (§7) |
-| **M5: Sensors** | Temperature/humidity mode, weather from the internet |
+| **M5: Weather and sensors** | Outside weather from Open-Meteo in the clock (done, 0.4.0); temperature/humidity sensor later |
 
 ## 10. Open questions
 

@@ -73,7 +73,7 @@ pio pkg install                          # fetches ArduinoJson into .pio/libdeps
 | `src/animations/` | Standalone animations (`MatrixRain`, the rest in `Scenes`); add one in `Registry.cpp` |
 | `src/modes/` | Text playlist, clock (off mode lives in `App.*`) |
 | `src/model/` | `Item` and `Settings` with their JSON format |
-| `src/net/` | Wi-Fi + setup portal, mDNS, NTP, OTA, HTTP/WebSocket server |
+| `src/net/` | Wi-Fi + setup portal, mDNS, NTP, OTA, HTTP/WebSocket server, weather (Open-Meteo) |
 | `src/storage/` | LittleFS (playlist, settings) and NVS (Wi-Fi) |
 
 ## Troubleshooting
