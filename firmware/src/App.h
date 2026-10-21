@@ -9,6 +9,7 @@
 #include "modes/TextMode.h"
 #include "modes/TimerMode.h"
 #include "net/Network.h"
+#include "net/Weather.h"
 #include "util/Led.h"
 
 class OffMode : public Mode {
@@ -24,6 +25,7 @@ class App {
   Display display;
   Settings settings;
   Network network;
+  Weather weather;
   TextMode textMode;
   ClockMode clockMode;
   OffMode offMode;

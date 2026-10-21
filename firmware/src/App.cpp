@@ -93,6 +93,7 @@ void App::loop() {
   esp_task_wdt_reset();
 
   network.loop();
+  weather.loop(settings, network.online(), millis());
   handleEvents();
   // Read the clock *after* handling messages: handlers store fresh millis()
   // values, and `now - thatValue` must never go negative (it would wrap).
@@ -362,6 +363,15 @@ void App::fillState(JsonDocument& doc) {
   tm["total_ms"] = timerMode.total();
   tm["running"] = timerMode.running();
   tm["done"] = timerMode.done();
+  Weather::Now w;
+  if (weather.current(w, now)) {
+    JsonObject wo = doc["weather"].to<JsonObject>();
+    wo["temp"] = w.temp10 / 10.0;
+    wo["units"] = settings.weather.fahrenheit ? "f" : "c";
+    wo["code"] = w.code;
+    wo["text"] = Weather::describe(w.code);
+    wo["age"] = (now - w.at) / 1000;
+  }
 }
 
 void App::broadcastState() {
@@ -486,6 +496,9 @@ void App::handleMessage(uint32_t client, const char* data, size_t len) {
     strlcpy(settings.mode, before.mode, sizeof(settings.mode));  // use set_mode for that
     if (strcmp(before.timezone, settings.timezone) != 0) network.applyTimezone(settings.timezone);
     if (strcmp(before.hostname, settings.hostname) != 0) network.applyHostname(settings.hostname);
+    if (strcmp(before.weather.place, settings.weather.place) || before.weather.lat != settings.weather.lat ||
+        before.weather.lon != settings.weather.lon || before.weather.fahrenheit != settings.weather.fahrenheit)
+      weather.invalidate();
     _appliedBase = 255;  // re-apply brightness now
     markDirty(true, false);
     ack(client, id, true);

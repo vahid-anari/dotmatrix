@@ -8,7 +8,7 @@
 void ClockMode::begin(App& app) {
   _showingDate = false;
   _lastSecond = 0;
-  _lastDate = time(nullptr);
+  _lastDate = _lastWeather = time(nullptr);
   app.display.clear();
   app.display.setBrightness(app.brightnessFor(-1));
 }
@@ -52,17 +52,33 @@ void ClockMode::loop(App& app, uint32_t now) {
   struct tm local;
   localtime_r(&t, &local);
 
+  // When both are due, the date goes first and the weather follows it.
   uint16_t every = app.settings.clock.dateEvery;
   if (every && app.timeValid() && t - _lastDate >= every) {
     _lastDate = t;
-    _dateItem = Item();
-    strftime(_dateItem.text, sizeof(_dateItem.text), app.settings.clock.dateFormat, &local);
-    _dateItem.effectIn = _dateItem.effectOut = effectIndex("scroll_left");
-    _dateItem.speedIn = _dateItem.speedOut = 35;
-    _dateItem.pause = 1000;
-    app.display.playText(_dateItem);
-    _showingDate = true;
+    char buf[MAX_TEXT + 1];
+    strftime(buf, sizeof(buf), app.settings.clock.dateFormat, &local);
+    scroll(app, buf);
     return;
   }
+  uint16_t wEvery = app.settings.clock.weatherEvery;
+  if (wEvery && t - _lastWeather >= wEvery) {
+    _lastWeather = t;
+    char buf[48];
+    if (app.weather.text(buf, sizeof(buf), app.settings.weather.fahrenheit, now)) {
+      scroll(app, buf);
+      return;
+    }
+  }
   drawTime(app, local);
+}
+
+void ClockMode::scroll(App& app, const char* text) {
+  _dateItem = Item();
+  strlcpy(_dateItem.text, text, sizeof(_dateItem.text));
+  _dateItem.effectIn = _dateItem.effectOut = effectIndex("scroll_left");
+  _dateItem.speedIn = _dateItem.speedOut = 35;
+  _dateItem.pause = 1000;
+  app.display.playText(_dateItem);
+  _showingDate = true;
 }

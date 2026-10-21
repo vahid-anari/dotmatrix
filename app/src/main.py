@@ -27,6 +27,7 @@ async def main(page: ft.Page):
     theme.apply(page)
 
     app = App(page)
+    theme.set_mode(page, app.library.prefs.get("theme", "system"))
     # For development: DM_HOST=127.0.0.1:8080 flet run src/main.py
     if os.getenv("DM_HOST"):
         app.library.prefs["host"] = os.getenv("DM_HOST")

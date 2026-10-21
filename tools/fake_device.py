@@ -54,7 +54,9 @@ settings = {
     "mode": "text",
     "hostname": "dotmatrix",
     "timezone": "EST5EDT,M3.2.0,M11.1.0",
-    "clock": {"format_24h": True, "seconds": True, "date_every": 0, "date_format": "%a %b %d"},
+    "clock": {"format_24h": True, "seconds": True, "date_every": 0, "date_format": "%a %b %d",
+              "weather_every": 0},
+    "weather": {"place": "", "lat": 0, "lon": 0, "units": "c"},
     "night": {"enabled": False, "from": "23:00", "to": "07:00", "brightness": 1},
 }
 
@@ -132,7 +134,17 @@ def state_msg():
         "stopwatch": {"ms": stopwatch.elapsed(), "running": stopwatch.running},
         "timer": {"remaining_ms": timer_remaining(), "total_ms": timer["total"],
                   "running": timer["clock"].running, "done": timer["done"]},
+        **fake_weather(),
     }
+
+
+def fake_weather():
+    """A made-up reading once a place is set (the real display asks Open-Meteo)."""
+    w = settings["weather"]
+    if not w.get("place"):
+        return {}
+    temp = 8.4 if w.get("units") != "f" else 47.1
+    return {"weather": {"temp": temp, "units": w.get("units", "c"), "code": 61, "text": "Rain", "age": 42}}
 
 
 def hello_msg():

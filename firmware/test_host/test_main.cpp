@@ -134,6 +134,22 @@ static void testSettings() {
   CHECK(settingsUpdate(back, out.as<JsonObjectConst>(), err));
   CHECK(back.night.from == s.night.from && strcmp(back.hostname, "dotmatrix-kitchen") == 0);
   CHECK(strcmp(out["night"]["to"] | "", "06:15") == 0);
+
+  // Weather: place, units, and how often the clock shows it.
+  deserializeJson(doc, R"({"weather":{"place":"Toronto","lat":43.6532,"lon":-79.3832,"units":"f"},
+                           "clock":{"weather_every":30}})");
+  CHECK(settingsUpdate(s, doc.as<JsonObjectConst>(), err));
+  CHECK(strcmp(s.weather.place, "Toronto") == 0 && s.weather.lat == 436532 && s.weather.lon == -793832);
+  CHECK(s.weather.fahrenheit && s.clock.weatherEvery == 30);
+  out.clear();
+  settingsToJson(s, out.to<JsonObject>());
+  Settings back2;
+  CHECK(settingsUpdate(back2, out.as<JsonObjectConst>(), err));
+  CHECK(back2.weather.lat == 436532 && back2.weather.lon == -793832 && back2.weather.fahrenheit);
+  deserializeJson(doc, R"({"weather":{"lat":91}})");
+  CHECK(!settingsUpdate(s, doc.as<JsonObjectConst>(), err));
+  deserializeJson(doc, R"({"weather":{"units":"k"}})");
+  CHECK(!settingsUpdate(s, doc.as<JsonObjectConst>(), err));
 }
 
 // Run an animation item for its full duration; returns the last frame.

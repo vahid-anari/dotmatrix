@@ -85,6 +85,7 @@ cd app && python -m pytest
 | `src/core/player.py` | Plays an item over time for the editor's animated preview (ports of the firmware's effects) |
 | `src/core/sprites.py` | Sprite pictures, generated from the firmware by `tools/gen_sprites.py` |
 | `src/core/updates.py` | Latest GitHub release, downloads, firmware upload to the display |
+| `src/core/weather.py` | Place search for the weather (Open-Meteo), and how a reading is shown |
 | `src/ui/` | One module per screen, plus the shared theme and widgets |
 
 The font is [IBM Plex Sans](https://github.com/IBM/plex) (SIL Open Font License, see `src/assets/IBMPlexSans-OFL.txt`).
