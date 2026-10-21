@@ -33,6 +33,10 @@ A 64×8 LED matrix (eight 8×8 MAX7219 modules) on an ESP32-C3, controlled over 
 
 Each version (`v0.1.0`, …) has the Android app and the firmware under [Releases](../../releases), built by GitHub Actions: a push to `main` that raises the version releases it.
 
+## Support
+
+This is a free project I work on in my spare time. If you like it, you can [buy me a coffee](https://buymeacoffee.com/vahidanarim) ☕
+
 ## License
 
 MIT, see [LICENSE](LICENSE). Uses [MD_Parola](https://github.com/MajicDesigns/MD_Parola) and [MD_MAX72XX](https://github.com/MajicDesigns/MD_MAX72XX) (LGPL-2.1); the sprite data comes from the MD_Parola examples.
