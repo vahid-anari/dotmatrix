@@ -1,6 +1,6 @@
 # Dot Matrix Display — Design
 
-Status: v0.2 (2026-10-21), M1 firmware written
+Status: v0.2 (2026-10-21), M1 done and tested on hardware
 
 A 64×8 LED matrix (eight 8×8 MAX7219 modules) driven by an ESP32-C3, controlled from an Android app written in Python with Flet. This document records the decisions made so far and is the reference for both halves of the project.
 

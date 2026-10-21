@@ -76,6 +76,9 @@ pio pkg install                          # fetches ArduinoJson into .pio/libdeps
 
 ## Troubleshooting
 
+- **Build fails with `riscv32-esp-elf-g++: command not found`** (seen on macOS): the compiler was unpacked one folder too deep. Move the contents of `~/.platformio/packages/toolchain-riscv32-esp/riscv32-esp-elf/` up into `~/.platformio/packages/toolchain-riscv32-esp/` (same for `~/.platformio/tools/toolchain-riscv32-esp/`), then build again.
+- **The monitor misses the startup lines:** the C3's USB port reconnects on reset, so the first second of log is lost. Messages after that (Wi-Fi, clients) appear normally.
+- **`dotmatrix.local` doesn't resolve sometimes:** use the IP the display shows after connecting: `python tools/dm.py --host 192.168.x.x state`, or `export DM_HOST=192.168.x.x` once per terminal.
 - **Animations or the clock look mirrored** (text effects fine): set `DISPLAY_FLIP_X = true` in `src/config.h`.
 - **Wi-Fi drops or won't connect:** many C3 Super Mini boards have a weak antenna, so TX power is already lowered to 8.5 dBm (`WIFI_TX_POWER`). Keep the board away from the display's power wires.
 - **The state shows `"last_reset": "watchdog"`:** the main loop stalled and the device restarted itself. Please note what it was showing at the time.
