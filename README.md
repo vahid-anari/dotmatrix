@@ -19,7 +19,7 @@ A 64×8 LED matrix (eight 8×8 MAX7219 modules) on an ESP32-C3, controlled over 
 
 | Milestone | |
 |---|---|
-| M1: Firmware core | ✅ written, compiles; hardware test pending |
+| M1: Firmware core | ✅ done, tested on hardware |
 | M2: App core | next |
 | M3: Stopwatch, timer, OTA from app, CI releases | planned |
 | M4: More animations and text overlays | planned |
