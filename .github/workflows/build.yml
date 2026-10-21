@@ -44,10 +44,13 @@ jobs:
             echo "version=$(grep -m1 '^version' app/pyproject.toml | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
           fi
 
+      # arm64 only: every Android phone from the last ~8 years; about a third of
+      # the size of the universal APK. Add armeabi-v7a here for older phones.
       - name: Build APK
         working-directory: app
         run: >
           flet build apk --yes --no-rich-output --skip-flutter-doctor
+          --arch arm64-v8a
           --build-version "${{ steps.ver.outputs.version }}"
           --build-number "${{ github.run_number }}"
 
