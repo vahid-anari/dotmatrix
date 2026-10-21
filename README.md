@@ -30,7 +30,7 @@ A 64×8 LED matrix (eight 8×8 MAX7219 modules) on an ESP32-C3, controlled over 
 
 ## Downloads
 
-Each tagged version (`v0.1.0`, …) has the Android app and the firmware under [Releases](../../releases), built by GitHub Actions.
+Each version (`v0.1.0`, …) has the Android app and the firmware under [Releases](../../releases), built by GitHub Actions: a push to `main` that raises the version releases it.
 
 ## License
 
