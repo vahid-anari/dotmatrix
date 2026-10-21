@@ -2,7 +2,7 @@
 
 A 64×8 LED matrix (eight 8×8 MAX7219 modules) on an ESP32-C3, controlled over Wi-Fi from an Android app.
 
-- Text with 49 entry/exit effects, including sprites (Pacman, rocket, ...) and three laser effects
+- Text with 50 entry/exit effects, including sprites (Pacman, rocket, ...) and four laser effects
 - Effects over a text while it stays: wave, sparkle, pulse, border
 - Standalone animations: Matrix rain, Matrix reveal, starfield, Game of Life, fireworks, equalizer, snake, running sprite
 - The app's editor previews each item, animated, the way the display plays it

@@ -8,6 +8,7 @@ enum class FxKind : uint8_t {
   LaserWrite,  // a beam from the bottom-left corner draws the text, column by column
   LaserScan,   // a vertical beam sweeps across; the text is behind it
   LaserCut,    // a cutting dot traces each letter, stroke by stroke
+  LaserBeam,   // a level beam from the right edge draws the text, column by column
 };
 
 class TextFx {

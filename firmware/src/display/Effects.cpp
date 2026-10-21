@@ -53,6 +53,7 @@ static const EffectInfo EFFECTS[] = {
     {"laser_write", PA_NO_EFFECT, FxKind::LaserWrite},
     {"laser_scan", PA_NO_EFFECT, FxKind::LaserScan},
     {"laser_cut", PA_NO_EFFECT, FxKind::LaserCut},
+    {"laser_beam", PA_NO_EFFECT, FxKind::LaserBeam},
 };
 
 static constexpr uint8_t COUNT = sizeof(EFFECTS) / sizeof(EFFECTS[0]);

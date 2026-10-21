@@ -62,7 +62,7 @@ On GitHub, in the repo: **Settings → Secrets and variables → Actions → New
 
 Keep `dotmatrix.jks` and its password safe and **never commit it** (`*.jks` is in `.gitignore`). If the key is lost, the next version can only be installed after uninstalling the app. An app installed before the key existed has to be uninstalled once: export your texts first (Settings → Export) and import them afterwards.
 
-Making a release: set the same version in `app/pyproject.toml` and `APP_VERSION` (`src/ui/app.py`), commit, then tag it (`git tag v0.3.0 && git push origin v0.3.0`). CI refuses a tag that doesn't match.
+Making a release: set the same version in `app/pyproject.toml` and `APP_VERSION` (`src/ui/app.py`), commit, then tag it (`git tag v0.3.1 && git push origin v0.3.1`). CI refuses a tag that doesn't match.
 
 To build locally instead: `cd app && flet build apk` (the APK ends up in `app/build/apk/`).
 

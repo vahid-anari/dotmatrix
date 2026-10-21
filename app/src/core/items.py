@@ -16,6 +16,7 @@ DEFAULT_EFFECTS = [
     "sprite_arrow2", "sprite_sailboat", "sprite_steamboat", "sprite_heart", "sprite_invader",
     "sprite_rocket", "sprite_fireball", "sprite_chevron", "sprite_walker", "sprite_wheel",
     "sprite_hourglass", "laser_write", "laser_scan", "laser_cut",
+    "laser_beam",
 ]
 DEFAULT_ANIMATIONS = ["matrix_rain", "matrix_reveal", "starfield", "life", "fireworks", "equalizer",
                       "snake", "sprite_run"]
