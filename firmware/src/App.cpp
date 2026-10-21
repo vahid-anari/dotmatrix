@@ -1,15 +1,25 @@
 #include "App.h"
 
 #include <WiFi.h>
+#include <esp_ota_ops.h>
 #include <esp_system.h>
 #include <esp_task_wdt.h>
 
 #include "animations/Registry.h"
 #include "display/Effects.h"
+#include "model/JsonUtil.h"
 #include "net/WebServer.h"
 #include "storage/Storage.h"
 
 App app;
+
+// After a firmware update the new image starts "pending". Tell the core not to
+// accept it straight away: App::loop() accepts it once it has run properly for
+// a while (online with the web server up). If it crashes or the watchdog fires
+// before that, the bootloader goes back to the previous firmware by itself.
+extern "C" bool verifyRollbackLater() { return true; }
+static const uint32_t OTA_ACCEPT_ONLINE_MS = 30000;      // online this long → keep
+static const uint32_t OTA_ACCEPT_ANYWAY_MS = 5UL * 60000;  // or just healthy this long
 
 static const uint32_t PREVIEW_TIMEOUT_MS = 10UL * 60 * 1000;
 
@@ -53,6 +63,13 @@ void App::begin() {
   Mode* m = findMode(settings.mode);
   setMode(m ? m : &textMode, false);
 
+  esp_ota_img_states_t ota;
+  if (esp_ota_get_state_partition(esp_ota_get_running_partition(), &ota) == ESP_OK &&
+      ota == ESP_OTA_IMG_PENDING_VERIFY) {
+    _otaPendingVerify = true;
+    LOG("ota: new firmware on trial; it is kept once it has run for a while");
+  }
+
   // Watchdog: if loop() stalls for 10 s, reboot; state is restored from flash.
   // Armed last, because formatting LittleFS on first boot takes a few seconds.
   esp_task_wdt_config_t wdt = {WATCHDOG_TIMEOUT_MS, 0, true};
@@ -79,6 +96,24 @@ void App::loop() {
   // values, and `now - thatValue` must never go negative (it would wrap).
   uint32_t now = millis();
 
+  if (timerMode.update(now)) {
+    LOG("timer: done");
+    _stateChanged = true;
+    // Time's up: show it, whatever was on the display (but leave a firmware
+    // upload alone; the countdown result is kept either way).
+    if (!WebServer::otaInProgress()) {
+      if (textMode.previewing()) endPreview();
+      _modeBeforePreview = nullptr;
+      bool wasNotice = _noticeActive;
+      _noticeActive = false;
+      if (_mode == &timerMode && wasNotice) {
+        _mode->end(*this);  // a notice was on top: redraw from a clean start
+        _mode->begin(*this);
+      }
+      setMode(&timerMode, false);
+    }
+  }
+
   if (WebServer::otaInProgress()) {
     // Keep the display quiet while flashing.
   } else if (_noticeActive) {
@@ -93,6 +128,12 @@ void App::loop() {
   }
 
   if (textMode.previewing() && now - _previewStarted >= PREVIEW_TIMEOUT_MS) endPreview();
+
+  if (_otaPendingVerify && ((network.online() && now >= OTA_ACCEPT_ONLINE_MS) || now >= OTA_ACCEPT_ANYWAY_MS)) {
+    esp_ota_mark_app_valid_cancel_rollback();
+    _otaPendingVerify = false;
+    LOG("ota: new firmware accepted");
+  }
 
   checkBrightness(now);
   saveIfDue(now);
@@ -121,7 +162,7 @@ void App::loop() {
 // --------------------------------------------------------------------- Modes
 
 Mode* App::findMode(const char* id) {
-  Mode* modes[] = {&textMode, &clockMode, &offMode};
+  Mode* modes[] = {&textMode, &clockMode, &offMode, &stopwatchMode, &timerMode};
   for (Mode* m : modes)
     if (strcmp(m->id(), id) == 0) return m;
   return nullptr;
@@ -274,9 +315,7 @@ void App::sendHello(uint32_t client) {
   JsonArray an = doc["animations"].to<JsonArray>();
   for (uint8_t i = 0; i < animationCount(); i++) an.add(animationId(i));
   JsonArray md = doc["modes"].to<JsonArray>();
-  md.add("text");
-  md.add("clock");
-  md.add("off");
+  for (const char* m : {"text", "clock", "off", "stopwatch", "timer"}) md.add(m);
   WebServer::send(client, doc);
   sendSettings(client);
 }
@@ -308,6 +347,15 @@ void App::fillState(JsonDocument& doc) {
   doc["free_heap"] = ESP.getFreeHeap();
   doc["min_free_heap"] = ESP.getMinFreeHeap();
   doc["last_reset"] = _resetReason;
+  uint32_t now = millis();
+  JsonObject sw = doc["stopwatch"].to<JsonObject>();
+  sw["ms"] = stopwatchMode.ms(now);
+  sw["running"] = stopwatchMode.running();
+  JsonObject tm = doc["timer"].to<JsonObject>();
+  tm["remaining_ms"] = timerMode.remaining(now);
+  tm["total_ms"] = timerMode.total();
+  tm["running"] = timerMode.running();
+  tm["done"] = timerMode.done();
 }
 
 void App::broadcastState() {
@@ -367,7 +415,7 @@ void App::handleMessage(uint32_t client, const char* data, size_t len) {
     Mode* m = findMode(doc["mode"] | "");
     if (!m) return ack(client, id, false, "unknown mode");
     if (textMode.previewing()) endPreview();
-    setMode(m, true);
+    setMode(m, persistent(m));
     ack(client, id, true);
 
   } else if (strcmp(cmd, "set_playlist") == 0) {
@@ -450,10 +498,59 @@ void App::handleMessage(uint32_t client, const char* data, size_t len) {
     ack(client, id, true);
     _rebootAt = millis() + 500;
 
-  } else if (strcmp(cmd, "stopwatch") == 0 || strcmp(cmd, "timer") == 0) {
-    ack(client, id, false, "not available in this firmware yet");
+  } else if (strcmp(cmd, "stopwatch") == 0) {
+    handleStopwatch(client, id, doc["action"] | "");
+
+  } else if (strcmp(cmd, "timer") == 0) {
+    handleTimer(client, id, doc["action"] | "", doc["seconds"]);
 
   } else {
     ack(client, id, false, "unknown command");
   }
+}
+
+// --------------------------------------------------------- stopwatch / timer
+
+void App::handleStopwatch(uint32_t client, int id, const char* action) {
+  uint32_t now = millis();
+  if (strcmp(action, "start") == 0)
+    stopwatchMode.start(now);
+  else if (strcmp(action, "pause") == 0)
+    stopwatchMode.pause(now);
+  else if (strcmp(action, "reset") == 0)
+    stopwatchMode.reset();
+  else if (strcmp(action, "show") != 0)
+    return ack(client, id, false, "action must be start, pause, reset or show");
+  if (textMode.previewing()) endPreview();
+  setMode(&stopwatchMode, false);
+  _stateChanged = true;
+  ack(client, id, true);
+}
+
+void App::handleTimer(uint32_t client, int id, const char* action, JsonVariantConst seconds) {
+  uint32_t now = millis();
+  if (strcmp(action, "start") == 0) {
+    if (jsonIsNumber(seconds)) {
+      long s = jsonNum(seconds, 0);
+      if (s <= 0 || s > (long)(TimerMode::MAX_MS / 1000)) return ack(client, id, false, "seconds must be 1-86400");
+      timerMode.set((uint32_t)s * 1000);
+    } else if (timerMode.done()) {
+      timerMode.reset();  // start again with the same length
+    }
+    timerMode.start(now);
+  } else if (strcmp(action, "set") == 0) {
+    long s = jsonNum(seconds, 0);
+    if (s <= 0 || s > (long)(TimerMode::MAX_MS / 1000)) return ack(client, id, false, "seconds must be 1-86400");
+    timerMode.set((uint32_t)s * 1000);
+  } else if (strcmp(action, "pause") == 0) {
+    timerMode.pause(now);
+  } else if (strcmp(action, "reset") == 0) {
+    timerMode.reset();
+  } else if (strcmp(action, "show") != 0) {
+    return ack(client, id, false, "action must be start, set, pause, reset or show");
+  }
+  if (textMode.previewing()) endPreview();
+  setMode(&timerMode, false);
+  _stateChanged = true;
+  ack(client, id, true);
 }

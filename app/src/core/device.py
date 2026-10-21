@@ -7,6 +7,7 @@
 import asyncio
 import json
 import logging
+import time
 from typing import Callable
 
 import websockets
@@ -30,6 +31,7 @@ class Device:
         self.error = ""
         self.hello: dict = {}
         self.state: dict = {}
+        self.state_at = 0.0  # time.monotonic() when `state` arrived
         self.settings: dict = {}
         self._ws = None
         self._next_id = 1
@@ -159,6 +161,7 @@ class Device:
             self.hello = msg
         elif evt == "state":
             self.state = msg
+            self.state_at = time.monotonic()
         elif evt == "settings":
             self.settings = msg.get("settings", {})
         else:
@@ -205,6 +208,25 @@ class Device:
 
     async def update_settings(self, **settings):
         await self.request("set_settings", settings=settings)
+
+    # The display reports these every few seconds; in between, count on locally.
+    def stopwatch_ms(self) -> int:
+        sw = self.state.get("stopwatch", {})
+        ms = sw.get("ms", 0)
+        if sw.get("running"):
+            ms += int((time.monotonic() - self.state_at) * 1000)
+        return ms
+
+    def timer_remaining_ms(self) -> int:
+        t = self.state.get("timer", {})
+        ms = t.get("remaining_ms", 0)
+        if t.get("running"):
+            ms -= int((time.monotonic() - self.state_at) * 1000)
+        return max(0, ms)
+
+    @property
+    def has_tools(self) -> bool:
+        return "stopwatch" in self.hello.get("modes", [])
 
 
 def _describe(ex: Exception) -> str:

@@ -1,6 +1,6 @@
 # Dot Matrix Display — Design
 
-Status: v0.3 (2026-10-21), M1 done and tested on hardware; M2 app written
+Status: v0.4 (2026-10-21), M1 and M2 done and tested on hardware; M3 written
 
 A 64×8 LED matrix (eight 8×8 MAX7219 modules) driven by an ESP32-C3, controlled from an Android app written in Python with Flet. This document records the decisions made so far and is the reference for both halves of the project.
 
@@ -170,8 +170,9 @@ Transport: WebSocket at `ws://dotmatrix.local/ws`, text frames, one JSON object 
 {"id": 5, "cmd": "preview_end"}
 {"id": 6, "cmd": "set_settings", "settings": {...}}   // partial update, see below
 {"id": 6, "cmd": "get_settings"}                      // → settings event
-{"id": 7, "cmd": "stopwatch", "action": "start"}      // start | pause | reset
-{"id": 8, "cmd": "timer", "action": "start", "seconds": 300}
+{"id": 7, "cmd": "stopwatch", "action": "start"}      // start | pause | reset | show
+{"id": 8, "cmd": "timer", "action": "start", "seconds": 300}  // start [seconds] | set seconds |
+                                                      // pause | reset | show
 {"id": 9, "cmd": "set_wifi", "ssid": "...", "password": "..."}
 {"id": 10, "cmd": "reboot"}
 ```
@@ -179,8 +180,9 @@ Transport: WebSocket at `ws://dotmatrix.local/ws`, text frames, one JSON object 
 **Device → app**
 
 ```jsonc
-{"evt": "hello", "proto": 1, "fw": "0.9.0", "name": "dotmatrix", "max_items": 100, "max_text": 128,
- "effects": ["no_effect", ...], "animations": ["matrix_rain", ...], "modes": ["text", "clock", "off"]}
+{"evt": "hello", "proto": 1, "fw": "0.2.0", "name": "dotmatrix", "max_items": 100, "max_text": 128,
+ "effects": ["no_effect", ...], "animations": ["matrix_rain", ...],
+ "modes": ["text", "clock", "off", "stopwatch", "timer"]}
 {"evt": "settings", "settings": {...}}                // after hello, and whenever settings change
 {"evt": "ack", "id": 3, "ok": true}
 {"evt": "ack", "id": 3, "ok": false, "error": "item 4: unknown animation"}
@@ -188,9 +190,12 @@ Transport: WebSocket at `ws://dotmatrix.local/ws`, text frames, one JSON object 
 {"evt": "state", "mode": "clock", "playlist": "Home", "items": 12, "index": 3, "previewing": false,
  "time": "2026-10-21 14:05:09", "brightness": 6, "night": false, "wifi": "online",
  "ip": "192.168.1.50", "rssi": -58, "uptime": 123456, "free_heap": 182000,
- "min_free_heap": 170000, "last_reset": "power_on"}
-{"evt": "stopwatch", "ms": 83120, "running": true}    // M3
+ "min_free_heap": 170000, "last_reset": "power_on",
+ "stopwatch": {"ms": 83120, "running": true},
+ "timer": {"remaining_ms": 41000, "total_ms": 300000, "running": true, "done": false}}
 ```
+
+Stopwatch and timer commands switch the display to that mode (not remembered across a reboot). Both keep running in the background when another mode is shown. When the timer reaches zero the display switches to it and blinks for a minute. Between `state` messages the app counts on from the last values, so its preview runs smoothly without extra traffic.
 
 The device sends `state` when it changes, plus once every 5 s. The `hello` lists let the app build its effect and animation pickers from what the firmware supports.
 
@@ -248,13 +253,13 @@ app/
     └── ui/         one module per screen, shared widgets, theme
 ```
 
-Screens (bottom navigation bar; Tools comes with M3):
+Screens (bottom navigation bar):
 
 1. **Home**: connection state, what's showing now (drawn as LEDs), mode (texts / clock / off), brightness, a quick message shown as a preview.
 2. **Texts**: groups → items → editor. Drag to reorder, duplicate, "play this group" (sends `set_playlist`). The editor uses `preview` so changes show live on the matrix.
 3. **Clock**: 12/24 h, seconds, date interval and format, night dimming.
-4. **Tools**: stopwatch and countdown timer, both running on the device.
-5. **Settings**: device address (auto via mDNS, manual override), Wi-Fi, firmware version and update, app version and update, library backup/restore (JSON file).
+4. **Tools**: stopwatch and countdown timer (presets and a custom length), both running on the device.
+5. **Settings**: device address (found automatically, or typed), name, time zone, Wi-Fi, library export/import, and updates for the app and the display's firmware.
 
 Storage on the phone: one JSON file in `FLET_APP_STORAGE_DATA`. The Demo group (one item per effect) is built in.
 
@@ -262,7 +267,12 @@ Look: aluminium greys, circuit-board green for controls, and red only in the LED
 
 Finding the display: the last address that worked, then `dotmatrix.local`, then a scan of the phone's /24 subnet for `/api/status` (no special Android permissions). After three failed reconnects the app looks again, in case the router gave the display a new address.
 
-The app checks GitHub Releases for newer APK and firmware versions and offers to download them.
+**Updates (M3).** Every release tag `vX.Y.Z` builds the APK and the firmware with that same version (CI fails if `app/pyproject.toml` or `APP_VERSION` disagree with the tag, and stamps `FW_VERSION` into the firmware). The app reads the latest release from the GitHub API at start and when asked:
+
+- a newer APK: the phone's browser downloads it, and installing it over the old app keeps the library;
+- newer firmware: the phone downloads `dotmatrix-firmware.bin`, checks it is an ESP32 image, and POSTs it to the display's `/update`. The ESP32 writes it to the spare OTA slot and only switches to it once the whole image has been verified, so an interrupted upload leaves the old firmware running.
+
+Local builds report `X.Y.Z-dev`, which sorts just below release `X.Y.Z`.
 
 **Animated preview (M4).** The editor's LED strip plays the item's effects, not just the still text. Only effects copied exactly from MD_Parola are animated: scroll in all four directions, print, wipe, opening/closing, slice, and the Matrix animations (ported from the firmware). Any other effect shows the still picture rather than a wrong animation. Lists stay still to save battery. Each new firmware effect gets its app preview in the same change, so the two never drift apart.
 
@@ -278,7 +288,7 @@ The app checks GitHub Releases for newer APK and firmware versions and offers to
 |---|---|
 | **M1: Firmware core** | PlatformIO project, display wrapper, TextMode + ClockMode, animation framework with `matrix_rain` and `matrix_reveal`, LittleFS, Wi-Fi + setup portal, mDNS, NTP, WebSocket API, watchdog |
 | **M2: App core** | Device client, Home, Texts (+ live preview, animation items), Clock, Settings, fake device |
-| **M3: Extras** | Stopwatch and timer on the device, night dimming, OTA from the app, app update check, CI releases |
+| **M3: Extras** | Stopwatch and timer on the device, OTA from the app, app update check, CI releases (night dimming already came with M1) |
 | **M4: Effects** | Remaining animations (`starfield`, `life`, `fireworks`, `equalizer`, `snake`, `sprite_run`) and overlays (`wave`, `sparkle`, `pulse`, `border`). Animated preview in the app editor (§7) |
 | **M5: Sensors** | Temperature/humidity mode, weather from the internet |
 

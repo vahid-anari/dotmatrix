@@ -15,11 +15,13 @@ pio device monitor       # serial log, 115200 baud
 
 The first build downloads the ESP32 toolchain and libraries, which takes a few minutes.
 
-Later updates can go over Wi-Fi:
+Later updates can go over Wi-Fi, either from the app (Settings → Updates installs the latest release) or from PlatformIO:
 
 ```sh
 pio run -t upload --upload-port dotmatrix.local
 ```
+
+Local builds report version `X.Y.Z-dev` (`FW_VERSION` in `src/config.h`); release builds get the tag's version from CI.
 
 ## Wiring
 

@@ -11,6 +11,10 @@ app/src/storage/
 app/src/.flet/
 .pytest_cache/
 
+# Signing keys: never commit
+*.jks
+*.keystore
+
 # Editors and OS
 .idea/
 .vscode/

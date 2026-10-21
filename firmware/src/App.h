@@ -5,7 +5,9 @@
 #include "model/Settings.h"
 #include "modes/ClockMode.h"
 #include "modes/Mode.h"
+#include "modes/StopwatchMode.h"
 #include "modes/TextMode.h"
+#include "modes/TimerMode.h"
 #include "net/Network.h"
 #include "util/Led.h"
 
@@ -25,6 +27,8 @@ class App {
   TextMode textMode;
   ClockMode clockMode;
   OffMode offMode;
+  StopwatchMode stopwatchMode;
+  TimerMode timerMode;
 
   void begin();
   void loop();
@@ -55,6 +59,7 @@ class App {
   uint32_t _rebootAt = 0;
   bool _stateChanged = false;
   const char* _resetReason = "";
+  bool _otaPendingVerify = false;
 
   Mode* findMode(const char* id);
   void setMode(Mode* m, bool persist);
@@ -75,6 +80,10 @@ class App {
   void sendSettings(uint32_t client);
   void ack(uint32_t client, int id, bool ok, const char* error = nullptr);
   void endPreview();
+  void handleStopwatch(uint32_t client, int id, const char* action);
+  void handleTimer(uint32_t client, int id, const char* action, JsonVariantConst seconds);
+  // Modes that survive a reboot; the stopwatch and timer don't.
+  bool persistent(Mode* m) const { return m == &textMode || m == &clockMode || m == &offMode; }
 
   static void onOnline();
 };

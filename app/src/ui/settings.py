@@ -3,6 +3,7 @@ import time
 
 import flet as ft
 
+from core import updates
 from core.device import PROTO_VERSION
 
 from .app import APP_VERSION
@@ -47,6 +48,15 @@ class SettingsTab:
         self.reboot_btn = ft.OutlinedButton("Restart the display", icon=ft.Icons.RESTART_ALT, on_click=self._reboot)
         self.about = ft.Column(spacing=6)
 
+        self.upd_status = muted("", 14)
+        self.upd_check = ft.OutlinedButton("Check for updates", icon=ft.Icons.SYNC, on_click=self._check)
+        self.app_upd = ft.FilledButton(icon=ft.Icons.DOWNLOAD, on_click=self._get_app, visible=False)
+        self.fw_upd = ft.FilledButton(icon=ft.Icons.SYSTEM_UPDATE_ALT, on_click=self._install_fw, visible=False)
+        self.fw_progress = ft.ProgressBar(value=0, visible=False)
+        self.fw_step = muted("", 14)
+        self._installing = False
+        self.launcher = ft.UrlLauncher()
+
         self.file_picker = ft.FilePicker()
 
         self.view = ft.Column([
@@ -60,6 +70,9 @@ class SettingsTab:
                     ft.Row([ft.OutlinedButton("Export", icon=ft.Icons.UPLOAD_FILE, on_click=self._export),
                             ft.OutlinedButton("Import", icon=ft.Icons.FILE_OPEN, on_click=self._import)], wrap=True),
                     note="Save all groups to a file, or add groups from one."),
+            section("Updates", self.upd_status, self.app_upd, self.fw_upd, self.fw_progress, self.fw_step,
+                    self.upd_check,
+                    note="New versions come from this project's releases on GitHub."),
             section("About", self.about),
         ], spacing=22, scroll=ft.ScrollMode.AUTO, expand=True)
         self.refresh()
@@ -91,6 +104,29 @@ class SettingsTab:
                 ("Protocol", f"{PROTO_VERSION}" + (" (display differs)" if d.proto_mismatch else ""))]
         self.about.controls = [ft.Row([muted(k, 14), ft.Text(v, size=14)],
                                       alignment=ft.MainAxisAlignment.SPACE_BETWEEN) for k, v in rows]
+        self._refresh_updates()
+
+    def _refresh_updates(self):
+        app, latest = self.app, self.app.latest
+        if self._installing:
+            return
+        if app.update_error:
+            self.upd_status.value = app.update_error
+        elif latest is None:
+            self.upd_status.value = "Checking…"
+        elif app.app_update or app.firmware_update:
+            self.upd_status.value = f"Version {latest.version} is available."
+        else:
+            self.upd_status.value = f"Up to date (latest release is {latest.version})." if latest.version \
+                else "No releases yet."
+        d = app.device
+        if self.fw_step.value.startswith("Installed") and d.connected and latest \
+                and d.hello.get("fw") == latest.version:
+            self.fw_step.value = ""  # the display is back, running the new version
+        self.app_upd.visible = app.app_update
+        self.app_upd.content = f"Download app {latest.version}" if latest else ""
+        self.fw_upd.visible = app.firmware_update
+        self.fw_upd.content = f"Install firmware {latest.version} on the display" if latest else ""
 
     # --------------------------------------------------------------- connect
     def _connect(self, e):
@@ -188,3 +224,63 @@ class SettingsTab:
             return
         self.app.toast(f"Added {n} group{'s' if n != 1 else ''}")
         self.app.refresh()
+
+    # --------------------------------------------------------------- updates
+    async def _check(self, e):
+        self.upd_status.value = "Checking…"
+        self.upd_status.update()
+        await self.app.check_updates()
+
+    async def _get_app(self, e):
+        latest = self.app.latest
+        if latest and latest.apk_url:
+            # The phone's browser downloads it; open the file to install over this version.
+            await self.launcher.launch_url(latest.apk_url)
+            self.app.toast("Downloading. Open the file when it's done to install the update.")
+
+    def _install_fw(self, e):
+        latest, d = self.app.latest, self.app.device
+        if not latest:
+            return
+
+        def yes(ev):
+            self.app.page.pop_dialog()
+            self.app.page.run_task(self._do_install)
+
+        self.app.page.show_dialog(ft.AlertDialog(
+            title=ft.Text(f"Install firmware {latest.version}?"),
+            content=ft.Text(f"The display runs {d.hello.get('fw', '?')}. Your phone downloads the update "
+                            "from GitHub and sends it to the display over Wi-Fi. This takes about a minute, "
+                            "then the display restarts. Your texts and settings stay."),
+            actions=[ft.TextButton("Cancel", on_click=lambda ev: self.app.page.pop_dialog()),
+                     ft.FilledButton("Install", on_click=yes)]))
+
+    async def _do_install(self):
+        latest, d = self.app.latest, self.app.device
+        self._installing = True
+        self.fw_upd.disabled = self.upd_check.disabled = True
+        self.fw_progress.visible, self.fw_progress.value = True, 0
+
+        def step(text, frac=None):
+            self.fw_step.value = text
+            if frac is not None:
+                self.fw_progress.value = frac
+            self.app.page.update()
+
+        try:
+            step("Downloading from GitHub…")
+            data = await updates.download(latest.firmware_url, lambda f: step("Downloading from GitHub…", f * 0.3))
+            err = updates.check_firmware_image(data)
+            if err:
+                raise RuntimeError(err)
+            step("Sending to the display…", 0.3)
+            await updates.upload_firmware(d.host, data, lambda f: step("Sending to the display…", 0.3 + f * 0.7))
+            step("Installed. The display is restarting…", 1.0)
+            self.app.toast(f"Firmware {latest.version} installed. The display reconnects in a few seconds.")
+        except Exception as ex:  # noqa: BLE001 — show any failure to the user
+            step(f"The update didn't finish: {ex} The display keeps its current firmware.")
+        finally:
+            self._installing = False
+            self.fw_upd.disabled = self.upd_check.disabled = False
+            self.fw_progress.visible = False
+            self.app.refresh()
