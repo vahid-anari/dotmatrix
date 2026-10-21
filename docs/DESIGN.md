@@ -315,6 +315,6 @@ Local builds report `X.Y.Z-dev`, which sorts just below release `X.Y.Z`.
 
 ## 10. Open questions
 
-- **Security on the home network:** firmware upload (`/update`, ArduinoOTA) and Wi-Fi changes have no password yet, so anyone on the same Wi-Fi could reflash the device. Proposal: a device PIN shown on the display when the app pairs for the first time.
+- **Security on the home network:** firmware upload (`/update`, ArduinoOTA) and settings changes have no password, so anyone on the same Wi-Fi could install firmware of their own. Decided (2026-10-21): leave it open for now. Planned for later: signed updates, where CI signs each release's firmware with a key kept in the repo secrets and the display accepts only a validly signed image over Wi-Fi (USB still takes anything). No PIN to type; updates from the app work as before.
 - Repository name (candidates: `dotmatrix-display`, `pixelboard`, `ledline`, `glimmer`, `marquee32`).
 - If there will ever be more than one device, each needs its own mDNS name (e.g. `dotmatrix-kitchen.local`).
