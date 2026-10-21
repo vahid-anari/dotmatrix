@@ -1,0 +1,16 @@
+#pragma once
+#include <MD_Parola.h>
+
+// Text entry/exit effects, addressed by a stable string ID in the protocol.
+// IDs starting with "sprite_" use PA_SPRITE with the sprite of that name.
+struct EffectInfo {
+  const char* id;
+  textEffect_t effect;
+};
+
+// Returns the effect index for an ID, or 0 (no_effect) if unknown.
+uint8_t effectIndex(const char* id);
+// "sprite_pacman" → "pacman"; nullptr for non-sprite effects.
+const char* effectSpriteName(uint8_t index);
+const EffectInfo& effectAt(uint8_t index);
+uint8_t effectCount();

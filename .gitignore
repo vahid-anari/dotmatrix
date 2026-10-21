@@ -1,0 +1,15 @@
+# PlatformIO
+.pio/
+firmware/.vscode/
+
+# Python / Flet
+__pycache__/
+*.pyc
+.venv/
+app/build/
+app/storage/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
