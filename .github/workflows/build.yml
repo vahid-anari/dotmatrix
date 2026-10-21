@@ -1,10 +1,13 @@
-# Builds the Android app and the firmware.
+# Builds the Android app and the firmware, and makes releases.
 #
-# - Every push to main: both are built; download them from the run's Artifacts.
-# - A tag like v0.1.0: the same, plus a GitHub Release with the APK and
-#   firmware.bin attached, so the phone can download and install it directly.
-#
-#   git tag v0.1.0 && git push origin v0.1.0
+# - Every push to main: both are built and tested; download them from the
+#   run's Artifacts.
+# - A release (tag vX.Y.Z, with the APK and firmware attached, which the app
+#   offers as an update) is made by itself when a push to main raises the
+#   version in app/pyproject.toml: there is no tag vX.Y.Z yet, so this run
+#   creates it. To release, raise the version (and APP_VERSION) and push.
+# - Pushing a tag by hand (git tag v0.4.0 && git push origin v0.4.0) still
+#   works too.
 name: Build
 
 on:
@@ -14,11 +17,43 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # to create releases
+  contents: write  # to create releases and their tags
+
+# One run at a time per branch, so two quick pushes can't both release.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      release: ${{ steps.ver.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version, and is this a release?
+        id: ver
+        run: |
+          v=$(grep -m1 '^version' app/pyproject.toml | cut -d'"' -f2)
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            [ "${GITHUB_REF#refs/tags/v}" = "$v" ] || { echo "::error::Tag ${GITHUB_REF#refs/tags/} but app/pyproject.toml says $v"; exit 1; }
+            release=true
+          elif [[ "$GITHUB_REF" == refs/heads/main ]] && ! git ls-remote --exit-code --tags origin "refs/tags/v$v" >/dev/null; then
+            release=true   # a new version on main
+          else
+            release=false
+          fi
+          grep -q "^APP_VERSION = \"$v\"" app/src/ui/app.py || { echo "::error::APP_VERSION in app/src/ui/app.py is not $v (app/pyproject.toml)"; exit 1; }
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "Version $v, release: $release" >> "$GITHUB_STEP_SUMMARY"
+
   app:
     name: Android app
+    needs: version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,24 +69,6 @@ jobs:
 
       - name: Install Flet
         run: pip install "flet[all]==1.0.4"
-
-      - name: Version from tag
-        id: ver
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=$(grep -m1 '^version' app/pyproject.toml | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
-          fi
-
-      # arm64 only: every Android phone from the last ~8 years; about a third of
-      # the size of the universal APK. Add armeabi-v7a here for older phones.
-      - name: Check version numbers match the tag
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          v="${{ steps.ver.outputs.version }}"
-          grep -q "^version = \"$v\"" app/pyproject.toml || { echo "::error::app/pyproject.toml version is not $v"; exit 1; }
-          grep -q "^APP_VERSION = \"$v\"" app/src/ui/app.py || { echo "::error::APP_VERSION in app/src/ui/app.py is not $v"; exit 1; }
 
       # Android only installs an update over an app signed with the same key, so
       # every build must use one fixed key, kept in the repo's secrets (see
@@ -87,14 +104,14 @@ jobs:
           fi
           flet build apk --yes --no-rich-output --skip-flutter-doctor \
             --arch arm64-v8a \
-            --build-version "${{ steps.ver.outputs.version }}" \
+            --build-version "${{ needs.version.outputs.version }}" \
             --build-number "${{ github.run_number }}" \
             "${signing[@]}"
 
       - name: Name the APK
         run: |
           mkdir -p dist
-          cp app/build/apk/*.apk "dist/dotmatrix-${{ steps.ver.outputs.version }}.apk"
+          cp app/build/apk/*.apk "dist/dotmatrix-${{ needs.version.outputs.version }}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -103,6 +120,7 @@ jobs:
 
   firmware:
     name: Firmware
+    needs: version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -119,11 +137,12 @@ jobs:
       - name: Install PlatformIO
         run: pip install platformio
 
-      - name: Version from tag
+      # A release says its version; other builds say which commit they are.
+      - name: Firmware version
         id: ver
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          if [ "${{ needs.version.outputs.release }}" = true ]; then
+            echo "version=${{ needs.version.outputs.version }}" >> "$GITHUB_OUTPUT"
           else
             echo "version=dev-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           fi
@@ -164,8 +183,8 @@ jobs:
 
   release:
     name: Release
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [app, firmware, app-tests]
+    if: needs.version.outputs.release == 'true'
+    needs: [version, app, firmware, app-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -173,7 +192,10 @@ jobs:
           path: dist
           merge-multiple: true
 
+      # Creates the tag vX.Y.Z on this commit if it isn't there yet.
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ needs.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
           files: dist/*
           generate_release_notes: true

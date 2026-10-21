@@ -38,7 +38,7 @@ DM_HOST=127.0.0.1:8080 flet run src/main.py       # or type 127.0.0.1:8080 in Se
 GitHub builds the APK for you (`.github/workflows/build.yml`):
 
 - After every push to `main`, the APK is under **Actions → the latest run → Artifacts**.
-- For a release, tag it: `git tag v0.1.0 && git push origin v0.1.0`. The APK and the firmware appear under **Releases**, where the phone can download and install them directly.
+- A push that raises the version makes a release by itself (see below). The APK and the firmware appear under **Releases**, where the phone can download and install them directly.
 
 Installing a newer version over the old one keeps your groups. Once installed, the app checks for new releases itself: Home shows a note, and Settings → Updates downloads the new APK or installs new firmware on the display over Wi-Fi.
 
@@ -62,7 +62,7 @@ On GitHub, in the repo: **Settings → Secrets and variables → Actions → New
 
 Keep `dotmatrix.jks` and its password safe and **never commit it** (`*.jks` is in `.gitignore`). If the key is lost, the next version can only be installed after uninstalling the app. An app installed before the key existed has to be uninstalled once: export your texts first (Settings → Export) and import them afterwards.
 
-Making a release: set the same version in `app/pyproject.toml` and `APP_VERSION` (`src/ui/app.py`), commit, then tag it (`git tag v0.3.1 && git push origin v0.3.1`). CI refuses a tag that doesn't match.
+Making a release: raise the version in `app/pyproject.toml` and `APP_VERSION` (`src/ui/app.py`) to the same number, commit and push to `main`. CI sees there's no tag `vX.Y.Z` for it yet, builds everything, and makes the release with that tag. Pushes that keep the version only build and test. Tagging by hand (`git tag v0.4.0 && git push origin v0.4.0`) works too; CI refuses a tag that doesn't match the version, or the two version numbers disagreeing.
 
 To build locally instead: `cd app && flet build apk` (the APK ends up in `app/build/apk/`).
 

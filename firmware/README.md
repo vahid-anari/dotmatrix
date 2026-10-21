@@ -21,7 +21,7 @@ Later updates can go over Wi-Fi, either from the app (Settings → Updates insta
 pio run -t upload --upload-port dotmatrix.local
 ```
 
-Local builds report version `X.Y.Z-dev` (`FW_VERSION` in `src/config.h`); release builds get the tag's version from CI.
+Local builds report version `X.Y.Z-dev` (`FW_VERSION` in `src/config.h`); release builds get the release's version from CI; other CI builds report `dev-<commit>`.
 
 ## Wiring
 

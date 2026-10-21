@@ -283,7 +283,7 @@ Look: aluminium greys, circuit-board green for controls, and red only in the LED
 
 Finding the display: the last address that worked, then `dotmatrix.local`, then a scan of the phone's /24 subnet for `/api/status` (no special Android permissions). After three failed reconnects the app looks again, in case the router gave the display a new address.
 
-**Updates (M3).** Every release tag `vX.Y.Z` builds the APK and the firmware with that same version (CI fails if `app/pyproject.toml` or `APP_VERSION` disagree with the tag, and stamps `FW_VERSION` into the firmware). The app reads the latest release from the GitHub API at start and when asked:
+**Updates (M3).** Every release `vX.Y.Z` builds the APK and the firmware with that same version (CI fails if `app/pyproject.toml` and `APP_VERSION` disagree, and stamps `FW_VERSION` into the firmware). A push to `main` whose version has no tag yet is a release: CI creates the tag with the release, so releasing needs no tag push. The app reads the latest release from the GitHub API at start and when asked:
 
 - a newer APK: the phone's browser downloads it, and installing it over the old app keeps the library;
 - newer firmware: the phone downloads `dotmatrix-firmware.bin`, checks it is an ESP32 image, and POSTs it to the display's `/update`. The ESP32 writes it to the spare OTA slot and only switches to it once the whole image has been verified, so an interrupted upload leaves the old firmware running.
@@ -295,7 +295,7 @@ Local builds report `X.Y.Z-dev`, which sorts just below release `X.Y.Z`.
 ## 8. Development and release
 
 - `tools/fake_device.py` is a Python WebSocket server that speaks protocol v1, so the app can be developed and tested without the hardware.
-- GitHub Actions build the firmware (`pio run`) and the APK (`flet build apk`) on every push. A `vX.Y.Z` tag publishes both to a GitHub Release.
+- GitHub Actions build the firmware (`pio run`) and the APK (`flet build apk`) on every push. A push that raises the version in `app/pyproject.toml` (or a pushed `vX.Y.Z` tag) publishes both to a GitHub Release tagged `vX.Y.Z`.
 - Firmware and app versions are tracked separately. Both check `proto` in `hello` and warn if they don't match.
 
 ## 9. Roadmap
