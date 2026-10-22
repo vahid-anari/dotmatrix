@@ -9,6 +9,8 @@ A 3D-printed case for the display: a front shell, a back cover that holds the ES
 |---|---|
 | ![Section](images/section.png) | ![Side](images/side.png) |
 
+To turn it around in 3D: open [`stl/assembled-preview.stl`](stl/assembled-preview.stl) on GitHub (or press space on it in the Mac's Finder). It's the whole thing put together, with the display and the ESP32, only for looking at.
+
 **First version, drawn from typical FC-16 sizes.** Measure your boards and put the numbers at the top of `dotmatrix_case.scad` before printing (see below).
 
 ## Print
