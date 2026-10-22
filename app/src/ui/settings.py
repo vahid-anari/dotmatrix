@@ -275,9 +275,11 @@ class SettingsTab:
     async def _get_app(self, e):
         latest = self.app.latest
         if latest and latest.apk_url:
-            # The phone's browser downloads it; open the file to install over this version.
-            await self.launcher.launch_url(latest.apk_url)
-            self.app.toast("Downloading. Open the file when it's done to install the update.")
+            # Hand the link to the phone's own browser. The default, a browser tab
+            # inside the app, downloads the file but then sits on "Downloading…".
+            # The real browser shows a notification to open the file when it's done.
+            await self.launcher.launch_url(latest.apk_url, mode=ft.LaunchMode.EXTERNAL_APPLICATION)
+            self.app.toast("Downloading in your browser. Tap the finished download to install the update.")
 
     def _install_fw(self, e):
         latest, d = self.app.latest, self.app.device
