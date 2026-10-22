@@ -5,6 +5,8 @@ mkdir -p stl images
 for p in shell back foot; do
   openscad -q -D "part=\"$p\"" -o "stl/$p.stl" dotmatrix_case.scad
 done
+# The whole thing put together, only for looking at (not for printing)
+openscad -q -D 'part="all"' -o stl/assembled-preview.stl dotmatrix_case.scad
 shot() { xvfb-run -a openscad -q --imgsize=1600,900 --colorscheme=Tomorrow --projection=p \
           --camera="$2" -D "part=\"$3\"" -o "images/$1.png" dotmatrix_case.scad; }
 # camera: eye x,y,z, then the point it looks at (x along the case, y towards the back, z up)
