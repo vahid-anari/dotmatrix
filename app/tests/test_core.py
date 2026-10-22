@@ -349,3 +349,15 @@ def test_weather_places_and_text():
     assert weather.describe({"temp": 8.4, "units": "c", "text": "Rain"}) == "8°C, rain"
     assert weather.describe({"temp": -0.6, "units": "f", "text": ""}) == "-1°F"
     assert weather.describe(None) == ""
+
+
+def test_led_colours():
+    red = preview.render_text("Hi")
+    preview.set_color("green")
+    try:
+        green = preview.render_text("Hi")
+        assert green != red and green.startswith(b"\x89PNG")
+        assert preview.bg_hex() == "#08100A"
+    finally:
+        preview.set_color("red")
+    assert preview.render_text("Hi") == red
