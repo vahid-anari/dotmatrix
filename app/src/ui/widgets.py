@@ -6,7 +6,6 @@ import flet as ft
 
 from core import preview
 
-LED_BG = "#120A09"
 
 
 def led(png: bytes, height: int | None = None, radius: int = 10) -> ft.Container:
@@ -14,7 +13,7 @@ def led(png: bytes, height: int | None = None, radius: int = 10) -> ft.Container
     return ft.Container(
         content=ft.Image(src=png, fit=ft.BoxFit.CONTAIN, filter_quality=ft.FilterQuality.MEDIUM,
                          gapless_playback=True),
-        bgcolor=LED_BG, padding=ft.Padding.symmetric(horizontal=8, vertical=8 if height is None else 5),
+        bgcolor=preview.bg_hex(), padding=ft.Padding.symmetric(horizontal=8, vertical=8 if height is None else 5),
         border_radius=radius, height=height,
     )
 

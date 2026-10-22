@@ -11,6 +11,7 @@ import os
 
 import flet as ft
 
+from core import preview
 from ui import theme
 from ui.app import App
 from ui.clock import ClockTab
@@ -28,6 +29,7 @@ async def main(page: ft.Page):
 
     app = App(page)
     theme.set_mode(page, app.library.prefs.get("theme", "system"))
+    preview.set_color(app.library.prefs.get("led_color", "red"))
     # For development: DM_HOST=127.0.0.1:8080 flet run src/main.py
     if os.getenv("DM_HOST"):
         app.library.prefs["host"] = os.getenv("DM_HOST")

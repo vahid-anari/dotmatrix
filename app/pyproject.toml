@@ -1,6 +1,6 @@
 [project]
 name = "dotmatrix"
-version = "0.4.0"
+version = "0.4.1"
 description = "Control app for the Dot Matrix LED display"
 readme = "README.md"
 requires-python = ">=3.10"

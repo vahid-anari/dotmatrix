@@ -1,7 +1,7 @@
 """Colours and type.
 
 Circuit-board green (solder mask) for controls and aluminium greys for surfaces.
-Red is reserved for the LED previews, so red always means "this is what the
+The LED colour (red unless chosen otherwise) is kept for the previews, so it always means "this is what the
 display shows".
 """
 import flet as ft

@@ -14,9 +14,26 @@ WIDTH, HEIGHT = 64, 8
 
 # LED look: cell = 6 px, dot = 5 px with clipped corners (reads as round).
 CELL = 6
-LIT = (255, 72, 48)
-UNLIT = (48, 18, 14)
-BG = (18, 10, 9)
+# LED colours, like the matrices you can buy: (lit, unlit, background).
+COLORS = {
+    "red": ((255, 72, 48), (48, 18, 14), (18, 10, 9)),
+    "green": ((70, 235, 110), (14, 42, 22), (8, 16, 10)),
+    "blue": ((70, 150, 255), (14, 26, 52), (8, 10, 20)),
+    "yellow": ((255, 196, 40), (48, 36, 10), (18, 14, 6)),
+    "white": ((240, 240, 232), (40, 40, 40), (14, 14, 14)),
+}
+LIT, UNLIT, BG = COLORS["red"]
+
+
+def set_color(name: str) -> None:
+    """Draw every preview in this colour from now on (Settings → Appearance)."""
+    global LIT, UNLIT, BG
+    LIT, UNLIT, BG = COLORS.get(name, COLORS["red"])
+    _render.cache_clear()
+
+
+def bg_hex() -> str:
+    return "#%02X%02X%02X" % BG
 
 
 def glyph(ch: str) -> list[int]:
@@ -106,9 +123,9 @@ def _png(width: int, height: int, rows: list[bytes], level: int = 6) -> bytes:
 
 
 @lru_cache(maxsize=64)
-def _cells(lit: tuple[int, int, int]) -> list[tuple[bytes, bytes]]:
+def _cells(lit: tuple[int, int, int], unlit: tuple[int, int, int], back: tuple[int, int, int]) -> list:
     """For each pixel row inside an LED cell: (unlit, lit) cell bytes."""
-    bg, off, on = bytes(BG), bytes(UNLIT), bytes(lit)
+    bg, off, on = bytes(back), bytes(unlit), bytes(lit)
     rows = []
     for dy in range(CELL):
         pair = []
@@ -124,7 +141,7 @@ def _cells(lit: tuple[int, int, int]) -> list[tuple[bytes, bytes]]:
 
 
 def _render_uncached(cols: tuple[int, ...], lit: tuple[int, int, int], level: int = 6) -> bytes:
-    cells = _cells(lit)
+    cells = _cells(lit, UNLIT, BG)
     rows = []
     for y in range(HEIGHT):
         bits = [c >> y & 1 for c in cols]
@@ -145,8 +162,8 @@ def dimmed(level: float) -> tuple[int, int, int]:
     return tuple(int(u + (l - u) * (0.25 + 0.75 * level)) for u, l in zip(UNLIT, LIT))
 
 
-def render_cols(cols: list[int], lit: tuple[int, int, int] = LIT) -> bytes:
-    return _render(tuple(cols), lit)
+def render_cols(cols: list[int], lit: tuple[int, int, int] | None = None) -> bytes:
+    return _render(tuple(cols), lit or LIT)
 
 
 def render_frame(cols: list[int], level: float = 1.0) -> bytes:

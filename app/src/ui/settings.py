@@ -3,7 +3,7 @@ import time
 
 import flet as ft
 
-from core import updates
+from core import preview, updates
 from core.device import PROTO_VERSION
 
 from . import theme
@@ -66,6 +66,8 @@ class SettingsTab:
                       ft.Segment(value="dark", label="Dark", icon=ft.Icons.DARK_MODE)],
             selected=[app.library.prefs.get("theme", "system")], show_selected_icon=False,
             on_change=self._theme_changed)
+        self.led_color = ft.Row(spacing=14)
+        self._draw_swatches()
 
         self.view = ft.Column([
             heading("Settings"),
@@ -78,7 +80,10 @@ class SettingsTab:
                     ft.Row([ft.OutlinedButton("Export", icon=ft.Icons.UPLOAD_FILE, on_click=self._export),
                             ft.OutlinedButton("Import", icon=ft.Icons.FILE_OPEN, on_click=self._import)], wrap=True),
                     note="Save all groups to a file, or add groups from one."),
-            section("Appearance", self.theme, note="Phone: light or dark, as the phone is set."),
+            section("Appearance", self.theme,
+                    ft.Column([muted("LED colour, like your display", 14),
+                               self.led_color], spacing=8),
+                    note="Phone: light or dark, as the phone is set."),
             section("Updates", self.upd_status, self.app_upd, self.fw_upd, self.fw_progress, self.fw_step,
                     self.upd_check,
                     note="New versions come from this project's releases on GitHub."),
@@ -143,6 +148,26 @@ class SettingsTab:
         self.app.library.save()
         theme.set_mode(self.app.page, key)
         self.app.refresh()  # colours worked out in code (borders, the playing group)
+
+    def _draw_swatches(self):
+        """Five round swatches; the chosen one has a ring and a tick."""
+        chosen = self.app.library.prefs.get("led_color", "red")
+        self.led_color.controls = [
+            ft.Container(
+                content=ft.Icon(ft.Icons.CHECK, size=18, color="#000000") if name == chosen else None,
+                width=36, height=36, border_radius=18, bgcolor="#%02X%02X%02X" % lit,
+                alignment=ft.Alignment.CENTER, tooltip=name.capitalize(),
+                border=ft.Border.all(3 if name == chosen else 1,
+                                     ft.Colors.PRIMARY if name == chosen else ft.Colors.OUTLINE),
+                on_click=lambda e, n=name: self._led_color_changed(n))
+            for name, (lit, _, _) in preview.COLORS.items()]
+
+    def _led_color_changed(self, key: str):
+        self.app.library.prefs["led_color"] = key
+        self.app.library.save()
+        preview.set_color(key)
+        self._draw_swatches()
+        self.app.refresh()
 
     # --------------------------------------------------------------- connect
     def _connect(self, e):

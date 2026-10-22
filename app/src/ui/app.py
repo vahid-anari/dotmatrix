@@ -13,7 +13,7 @@ from core.library import Library
 
 from . import theme
 
-APP_VERSION = "0.4.0"  # must match app/pyproject.toml and the release tag (CI checks)
+APP_VERSION = "0.4.1"  # must match app/pyproject.toml and the release tag (CI checks)
 log = logging.getLogger("app")
 
 
