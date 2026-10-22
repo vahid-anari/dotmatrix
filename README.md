@@ -27,15 +27,9 @@ An ESP32-C3 Super Mini, two MAX7219 4-in-1 LED matrix boards and five wires. Par
 | [`tools/`](tools/) | `dm.py` command-line client, `fake_device.py` for testing without hardware, example playlists |
 | [`docs/`](docs/DESIGN.md) | Design, protocol, roadmap; [hardware and wiring](docs/HARDWARE.md) |
 
-## Status
+## Planned
 
-| Milestone | |
-|---|---|
-| M1: Firmware core | ✅ done, tested on hardware |
-| M2: App core | ✅ done, tested on a phone |
-| M3: Stopwatch, timer, updates from the app, CI releases | ✅ done, released as v0.2.0 |
-| M4: More animations, lasers, overlays, animated preview | ✅ written, tested on the PC (host tests, fake display) |
-| M5: Outside weather in the clock | ✅ written (0.4.0); a temperature/humidity sensor later |
+A temperature and humidity sensor, and signed firmware updates. See the [roadmap](docs/DESIGN.md#9-roadmap).
 
 ## Downloads
 
