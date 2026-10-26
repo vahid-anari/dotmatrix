@@ -361,3 +361,18 @@ def test_led_colours():
     finally:
         preview.set_color("red")
     assert preview.render_text("Hi") == red
+
+
+def test_date_and_weather_settings():
+    from ui.clock import extras_from, extras_settings
+    # 0.5 firmware
+    x = extras_from({"extras_every": 20, "show_date": False, "show_weather": True})
+    assert x == {"every": 20, "show_date": False, "show_weather": True}
+    # older firmware: two intervals
+    assert extras_from({"date_every": 0, "weather_every": 60}) == {"every": 60, "show_date": False,
+                                                                   "show_weather": True}
+    assert extras_from({"date_every": 0, "weather_every": 0})["every"] == 0
+    # sent in both forms, so older firmware follows too
+    out = extras_settings({"every": 30, "show_date": True, "show_weather": False})
+    assert out == {"extras_every": 30, "show_date": True, "show_weather": False,
+                   "date_every": 30, "weather_every": 0}

@@ -218,7 +218,7 @@ Stopwatch and timer commands switch the display to that mode (not remembered acr
 
 The device sends `state` when it changes, plus once every 5 s. The `hello` lists let the app build its effect, animation, overlay and sprite pickers from what the firmware supports; firmware without `overlays` hides the overlay picker.
 
-**Weather.** With a place set, the display asks Open-Meteo (`http://api.open-meteo.com/v1/forecast`, free, no account) for the current temperature and WMO weather code every 15 minutes, or every 2 minutes after a failure, in a background task so a slow answer never stalls the display. Plain HTTP saves the TLS handshake; the data is public. The clock shows it like the date, as "8°C Rain" (° is character 0xB0 of the font), every `weather_every` seconds; when both are due, the date goes first. A reading older than 2 hours isn't shown. The app finds the place with Open-Meteo's place search, from the phone.
+**Weather.** With a place set, the display asks Open-Meteo (`http://api.open-meteo.com/v1/forecast`, free, no account) for the current temperature and WMO weather code every 15 minutes, or every 2 minutes after a failure, in a background task so a slow answer never stalls the display. Plain HTTP saves the TLS handshake; the data is public. Every `extras_every` seconds the clock makes way for the date and then the weather (each if switched on), as "8°C Rain" (° is character 0xB0 of the font; the display uses one short word, so even "-12°C Cloudy" fits on 64 columns). Drop style: the time slides up and away, each one drops in from the top, stays `extras_pause` ms and goes back up, then the time slides back up from below. Scroll style: each scrolls across from the right. A text too wide for the display always scrolls across. Firmware before 0.5 had `date_every` and `weather_every`; both are still accepted (a non-zero one switches that item on and sets the shared interval) and still reported, for older apps. A reading older than 2 hours isn't shown. The app finds the place with Open-Meteo's place search, from the phone.
 
 HTTP on port 80: `/` setup page, `/api/status`, `/api/scan`, `POST /api/wifi` (form: `ssid`, `password`), `POST /update` (firmware `.bin`). The setup network is `DotMatrix-XXXX` with password `dotmatrix`.
 
@@ -257,8 +257,12 @@ Effect IDs are snake_case (`no_effect`, `print`, `scroll_up`, ... `sprite_pacman
 ```jsonc
 {
   "brightness": 8,
-  "clock": {"format_24h": true, "seconds": true, "date_every": 10, "date_format": "%a %b %d",
-            "weather_every": 30},              // seconds, 0 = never (both)
+  "clock": {"format_24h": true, "seconds": true, "date_format": "%a %b %d",
+            "extras_every": 30,                 // seconds between date/weather, 0 = never (since 0.5)
+            "show_date": true, "show_weather": true,
+            "extras_style": "drop",             // drop | scroll
+            "extras_pause": 3000,               // ms each stays (drop)
+            "date_every": 30, "weather_every": 30},  // the same, as firmware before 0.5 had it
   "weather": {"place": "Burlington, Ontario", "lat": 43.3862, "lon": -79.8371, "units": "c"},  // since 0.4.0
   "night": {"enabled": true, "from": "23:00", "to": "07:00", "brightness": 1},
   "timezone": "EST5EDT,M3.2.0,M11.1.0"

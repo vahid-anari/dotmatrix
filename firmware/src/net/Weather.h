@@ -20,9 +20,11 @@ class Weather {
   void invalidate();
   // The latest reading, if it's less than 2 hours old.
   bool current(Now& out, uint32_t now) const;
-  // "8°C Rain" (° is character 0xB0 in the display font).
+  // "8°C Rain" (° is character 0xB0 in the display font), short enough to fit
+  // the display even as "-12°C Cloudy".
   bool text(char* buf, size_t n, bool fahrenheit, uint32_t now) const;
-  static const char* describe(uint8_t code);
+  static const char* describe(uint8_t code);  // full: "Partly cloudy" (for the app)
+  static const char* shortName(uint8_t code); // one short word: "Clouds"
 
  private:
   static constexpr uint32_t EVERY_MS = 15UL * 60 * 1000;

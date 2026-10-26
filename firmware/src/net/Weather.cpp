@@ -82,8 +82,25 @@ bool Weather::text(char* buf, size_t n, bool fahrenheit, uint32_t now) const {
   Now w;
   if (!current(w, now)) return false;
   int t = w.temp10 >= 0 ? (w.temp10 + 5) / 10 : -((-w.temp10 + 5) / 10);  // whole degrees
-  snprintf(buf, n, "%d\xB0%c %s", t, fahrenheit ? 'F' : 'C', describe(w.code));
+  snprintf(buf, n, "%d\xB0%c %s", t, fahrenheit ? 'F' : 'C', shortName(w.code));
   return true;
+}
+
+// One word, at most 6 letters, so "-12°C Cloudy" still fits on 64 columns.
+const char* Weather::shortName(uint8_t code) {
+  switch (code) {
+    case 0: case 1: return "Clear";
+    case 2: return "Clouds";
+    case 3: return "Cloudy";
+    case 45: case 48: return "Fog";
+    case 51: case 53: case 55:
+    case 61: case 63: case 65:
+    case 80: case 81: case 82: return "Rain";
+    case 56: case 57: case 66: case 67: return "Sleet";
+    case 71: case 73: case 75: case 77: case 85: case 86: return "Snow";
+    case 95: case 96: case 99: return "Storm";
+    default: return "";
+  }
 }
 
 // WMO weather interpretation codes, as Open-Meteo uses them.

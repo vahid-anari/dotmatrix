@@ -48,15 +48,33 @@ bool settingsUpdate(Settings& s, JsonObjectConst o, const char*& err) {
   if (!c.isNull()) {
     if (c["format_24h"].is<bool>()) n.clock.format24h = c["format_24h"];
     if (c["seconds"].is<bool>()) n.clock.seconds = c["seconds"];
-    if (jsonIsNumber(c["date_every"])) {
-      int d = jsonNum(c["date_every"], 0);
-      if (d < 0 || d > 3600) return err = "date_every must be 0-3600", false;
-      n.clock.dateEvery = d;
+    // Before 0.5 the date and the weather each had their own interval. Those
+    // keys (from an older app, or settings saved by older firmware) still work:
+    // a non-zero interval turns that one on and sets the shared interval.
+    for (const char* key : {"date_every", "weather_every"}) {
+      if (!jsonIsNumber(c[key])) continue;
+      int d = jsonNum(c[key], 0);
+      if (d < 0 || d > 3600) return err = "date_every/weather_every must be 0-3600", false;
+      bool& on = key[0] == 'd' ? n.clock.showDate : n.clock.showWeather;
+      on = d > 0;
+      if (d > 0) n.clock.extrasEvery = d;
     }
-    if (jsonIsNumber(c["weather_every"])) {
-      int d = jsonNum(c["weather_every"], 0);
-      if (d < 0 || d > 3600) return err = "weather_every must be 0-3600", false;
-      n.clock.weatherEvery = d;
+    if (jsonIsNumber(c["extras_every"])) {
+      int d = jsonNum(c["extras_every"], 0);
+      if (d < 0 || d > 3600) return err = "extras_every must be 0-3600", false;
+      n.clock.extrasEvery = d;
+    }
+    if (c["show_date"].is<bool>()) n.clock.showDate = c["show_date"];
+    if (c["show_weather"].is<bool>()) n.clock.showWeather = c["show_weather"];
+    if (c["extras_style"].is<const char*>()) {
+      const char* st = c["extras_style"];
+      if (strcmp(st, "drop") && strcmp(st, "scroll")) return err = "extras_style must be drop or scroll", false;
+      n.clock.extrasDrop = strcmp(st, "drop") == 0;
+    }
+    if (jsonIsNumber(c["extras_pause"])) {
+      int p = jsonNum(c["extras_pause"], 3000);
+      if (p < 500 || p > 15000) return err = "extras_pause must be 500-15000 ms", false;
+      n.clock.extrasPause = p;
     }
     if (c["date_format"].is<const char*>()) {
       const char* f = c["date_format"];
@@ -122,9 +140,15 @@ void settingsToJson(const Settings& s, JsonObject o) {
   JsonObject c = o["clock"].to<JsonObject>();
   c["format_24h"] = s.clock.format24h;
   c["seconds"] = s.clock.seconds;
-  c["date_every"] = s.clock.dateEvery;
   c["date_format"] = s.clock.dateFormat;
-  c["weather_every"] = s.clock.weatherEvery;
+  c["extras_every"] = s.clock.extrasEvery;
+  c["show_date"] = s.clock.showDate;
+  c["show_weather"] = s.clock.showWeather;
+  c["extras_style"] = s.clock.extrasDrop ? "drop" : "scroll";
+  c["extras_pause"] = s.clock.extrasPause;
+  // For apps from before 0.5, which still read the two intervals.
+  c["date_every"] = s.clock.showDate ? s.clock.extrasEvery : 0;
+  c["weather_every"] = s.clock.showWeather ? s.clock.extrasEvery : 0;
   JsonObject w = o["weather"].to<JsonObject>();
   w["place"] = s.weather.place;
   w["lat"] = s.weather.lat / 10000.0;

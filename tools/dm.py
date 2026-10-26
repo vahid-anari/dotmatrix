@@ -8,7 +8,7 @@ dm — talk to the Dot Matrix display from the command line (protocol v1).
     python tools/dm.py playlist tools/examples/demo.json
     python tools/dm.py say "Hello world" --effect scroll_left
     python tools/dm.py preview '{"type":"animation","animation":"matrix_reveal","text":"Hi"}'
-    python tools/dm.py settings '{"brightness":4,"clock":{"date_every":30}}'
+    python tools/dm.py settings '{"brightness":4,"clock":{"extras_every":30}}'
     python tools/dm.py watch            # print every message from the device
 
 Use --host to reach a device by IP, or set DM_HOST once per terminal

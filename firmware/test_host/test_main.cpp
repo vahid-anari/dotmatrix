@@ -108,7 +108,7 @@ static void testSettings() {
   deserializeJson(doc, R"({"brightness":9,"clock":{"format_24h":false,"date_every":30},
                           "night":{"enabled":true,"from":"22:30","to":"06:15","brightness":0}})");
   CHECK(settingsUpdate(s, doc.as<JsonObjectConst>(), err));
-  CHECK(s.brightness == 9 && !s.clock.format24h && s.clock.dateEvery == 30);
+  CHECK(s.brightness == 9 && !s.clock.format24h && s.clock.extrasEvery == 30 && s.clock.showDate);
   CHECK(s.night.enabled && s.night.from == 22 * 60 + 30 && s.night.to == 6 * 60 + 15);
 
   deserializeJson(doc, R"({"brightness":4.0,"night":{"brightness":2.0}})");
@@ -140,12 +140,36 @@ static void testSettings() {
                            "clock":{"weather_every":30}})");
   CHECK(settingsUpdate(s, doc.as<JsonObjectConst>(), err));
   CHECK(strcmp(s.weather.place, "Toronto") == 0 && s.weather.lat == 436532 && s.weather.lon == -793832);
-  CHECK(s.weather.fahrenheit && s.clock.weatherEvery == 30);
+  CHECK(s.weather.fahrenheit && s.clock.extrasEvery == 30 && s.clock.showWeather);
   out.clear();
   settingsToJson(s, out.to<JsonObject>());
   Settings back2;
   CHECK(settingsUpdate(back2, out.as<JsonObjectConst>(), err));
   CHECK(back2.weather.lat == 436532 && back2.weather.lon == -793832 && back2.weather.fahrenheit);
+  // 0.5: one interval for the date and the weather, which of them, how.
+  Settings e;
+  deserializeJson(doc, R"({"clock":{"extras_every":20,"show_date":false,"extras_style":"scroll","extras_pause":4500}})");
+  CHECK(settingsUpdate(e, doc.as<JsonObjectConst>(), err));
+  CHECK(e.clock.extrasEvery == 20 && !e.clock.showDate && e.clock.showWeather);
+  CHECK(!e.clock.extrasDrop && e.clock.extrasPause == 4500);
+  deserializeJson(doc, R"({"clock":{"extras_style":"sideways"}})");
+  CHECK(!settingsUpdate(e, doc.as<JsonObjectConst>(), err));
+  deserializeJson(doc, R"({"clock":{"extras_pause":100}})");
+  CHECK(!settingsUpdate(e, doc.as<JsonObjectConst>(), err));
+  // Settings saved by older firmware (two intervals) come in as the new ones...
+  Settings old;
+  deserializeJson(doc, R"({"clock":{"date_every":0,"weather_every":60}})");
+  CHECK(settingsUpdate(old, doc.as<JsonObjectConst>(), err));
+  CHECK(!old.clock.showDate && old.clock.showWeather && old.clock.extrasEvery == 60);
+  // ...and the saved new ones read back the same, old keys included.
+  out.clear();
+  settingsToJson(e, out.to<JsonObject>());
+  CHECK((out["clock"]["date_every"] | -1) == 0 && (out["clock"]["weather_every"] | -1) == 20);
+  Settings back3;
+  CHECK(settingsUpdate(back3, out.as<JsonObjectConst>(), err));
+  CHECK(back3.clock.extrasEvery == 20 && !back3.clock.showDate && back3.clock.showWeather &&
+        !back3.clock.extrasDrop && back3.clock.extrasPause == 4500);
+
   deserializeJson(doc, R"({"weather":{"lat":91}})");
   CHECK(!settingsUpdate(s, doc.as<JsonObjectConst>(), err));
   deserializeJson(doc, R"({"weather":{"units":"k"}})");

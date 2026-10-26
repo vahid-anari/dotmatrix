@@ -12,9 +12,15 @@ struct Settings {
   struct Clock {
     bool format24h = true;
     bool seconds = true;
-    uint16_t dateEvery = 0;     // seconds, 0 = never
     char dateFormat[24] = "%a %b %d";
-    uint16_t weatherEvery = 0;  // seconds, 0 = never
+    // Now and then the clock makes way for the date and the weather, one
+    // after the other ("extras").
+    uint16_t extrasEvery = 0;   // seconds, 0 = never
+    bool showDate = true;
+    bool showWeather = true;
+    bool extrasDrop = true;     // true: each drops in from the top, stays, goes back up;
+                                // false: each scrolls across from the right
+    uint16_t extrasPause = 3000;  // ms each stays (drop only)
   } clock;
 
   // Outside weather, from Open-Meteo, for the place chosen in the app.
