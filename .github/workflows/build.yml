@@ -5,7 +5,8 @@
 # - A release (tag vX.Y.Z, with the APK and firmware attached, which the app
 #   offers as an update) is made by itself when a push to main raises the
 #   version in app/pyproject.toml: there is no tag vX.Y.Z yet, so this run
-#   creates it. To release, raise the version (and APP_VERSION) and push.
+#   creates it. To release, raise the version (and APP_VERSION), add its
+#   "## X.Y.Z — date" section to CHANGELOG.md (the release's text) and push.
 # - Pushing a tag by hand (git tag v0.4.0 && git push origin v0.4.0) still
 #   works too.
 name: Build
@@ -45,6 +46,9 @@ jobs:
             release=true   # a new version on main
           else
             release=false
+          fi
+          if [ "$release" = true ] && ! grep -q "^## $v " CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no section '## $v'"; exit 1
           fi
           grep -q "^APP_VERSION = \"$v\"" app/src/ui/app.py || { echo "::error::APP_VERSION in app/src/ui/app.py is not $v (app/pyproject.toml)"; exit 1; }
           echo "version=$v" >> "$GITHUB_OUTPUT"
@@ -192,10 +196,24 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - uses: actions/checkout@v4
+        with:
+          path: src
+
+      # The release's text: this version's section of CHANGELOG.md.
+      - name: Notes
+        run: |
+          awk -v v="${{ needs.version.outputs.version }}" '
+            /^## / { if (found) exit; if ($2 == v) { found = 1; next } }
+            found { print }
+          ' src/CHANGELOG.md > notes.md
+          cat notes.md
+
       # Creates the tag vX.Y.Z on this commit if it isn't there yet.
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.version.outputs.version }}
           target_commitish: ${{ github.sha }}
+          name: Dot Matrix ${{ needs.version.outputs.version }}
           files: dist/*
-          generate_release_notes: true
+          body_path: notes.md

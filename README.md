@@ -88,7 +88,8 @@ DM_HOST=127.0.0.1:8080 flet run app/src/main.py
 the protocol between app and display, and the roadmap. GitHub Actions builds the
 firmware and the APK on every push; a push that raises the version in
 `app/pyproject.toml` (and `APP_VERSION`) publishes them as a release, which the app
-then offers as an update. Planned next: a temperature and humidity sensor, automatic
+then offers as an update; [`CHANGELOG.md`](CHANGELOG.md) lists what each version
+changed. Planned next: a temperature and humidity sensor, automatic
 brightness from a light sensor, and signed firmware updates.
 
 ## Support
