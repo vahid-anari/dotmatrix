@@ -6,7 +6,7 @@ import flet as ft
 
 from core import preview
 
-from .widgets import heading, led, muted, section
+from .widgets import bottom_room, led, muted, section
 
 PRESETS = [1, 3, 5, 10, 15, 30, 60]  # minutes
 
@@ -54,7 +54,6 @@ class ToolsTab:
         self.old_fw = muted("This display's firmware has no stopwatch or timer yet. "
                             "Update it under Settings.", 14)
         self.view = ft.Column([
-            heading("Tools"),
             muted("Both run on the display, so they keep going when your phone is away."),
             self.old_fw,
             # "Show on the display" sits on its own line, so the buttons never move
@@ -63,6 +62,7 @@ class ToolsTab:
             section("Timer", self.t_led, self.t_note, self.presets,
                     ft.Row([self.t_start, self.t_reset]), self.t_show,
                     note="When it reaches zero, the display switches to it and blinks."),
+            bottom_room(),
         ], spacing=20, scroll=ft.ScrollMode.AUTO, expand=True)
         self.refresh()
 

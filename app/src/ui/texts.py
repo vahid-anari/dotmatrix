@@ -17,7 +17,7 @@ from core.device import DeviceError
 from core.items import (ANIMATION_INFO, DEMO_NAME, is_sprite, new_animation_item, new_text_item, nice_name,
                         normalized, summary)
 
-from .widgets import Debouncer, LabeledSlider, heading, led, muted, section
+from .widgets import BOTTOM_ROOM, Debouncer, LabeledSlider, bottom_room, led, muted, section
 
 log = logging.getLogger(__name__)
 
@@ -73,12 +73,12 @@ class TextsTab:
         self.app = app
         self.list = ft.Column(spacing=10)
         self.view = ft.Column([
-            ft.Row([heading("Texts"),
-                    ft.FilledButton("New group", icon=ft.Icons.ADD, on_click=self._new_group)],
-                   alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Row([ft.FilledButton("New group", icon=ft.Icons.ADD, on_click=self._new_group)],
+                   alignment=ft.MainAxisAlignment.END),
             muted("Each group is a playlist. Play one to send it to the display; "
                   "it keeps playing even when your phone is away."),
             self.list,
+            bottom_room(),
         ], spacing=14, scroll=ft.ScrollMode.AUTO, expand=True)
         self.refresh()
 
@@ -187,7 +187,8 @@ class GroupScreen:
         self.app, self.group = app, group
         self.title = ft.Text(group["name"])
         self.items = ft.ReorderableListView(on_reorder=self._reordered, spacing=8,
-                                            show_default_drag_handles=False, expand=True)
+                                            show_default_drag_handles=False, expand=True,
+                                            padding=ft.Padding.only(bottom=BOTTOM_ROOM))
         self.empty = ft.Container(muted("No items yet. Add a text, or an animation like Matrix rain."),
                                   padding=ft.Padding.symmetric(vertical=24))
         self.view = ft.View(
@@ -322,7 +323,7 @@ class EditorScreen:
                 ft.TextButton("Done", icon=ft.Icons.CHECK, on_click=lambda e: self.app.pop())]),
             # The LED stays pinned at the top so every change is visible while scrolling.
             controls=[ft.Column([self.led, self.preview_note], spacing=4),
-                      ft.Column([self.live, *self._fields(), ft.Container(height=24)], spacing=18,
+                      ft.Column([self.live, *self._fields(), bottom_room()], spacing=18,
                                 scroll=ft.ScrollMode.AUTO, expand=True,
                                 horizontal_alignment=ft.CrossAxisAlignment.STRETCH)],
             padding=16, spacing=14,

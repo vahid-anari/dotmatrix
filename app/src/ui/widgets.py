@@ -22,8 +22,11 @@ def led_item(item: dict, height: int | None = None) -> ft.Container:
     return led(preview.render_item(item), height)
 
 
-def heading(text: str) -> ft.Text:
-    return ft.Text(text, size=26, weight=ft.FontWeight.W_600)
+BOTTOM_ROOM = 96  # every scrolling list ends with this much room, so the last row clears the bar
+
+
+def bottom_room() -> ft.Container:
+    return ft.Container(height=BOTTOM_ROOM)
 
 
 def section(title: str, *controls: ft.Control, note: str | None = None) -> ft.Column:

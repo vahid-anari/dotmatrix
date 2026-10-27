@@ -8,7 +8,7 @@ from core.device import PROTO_VERSION
 
 from . import theme
 from .app import APP_VERSION
-from .widgets import heading, muted, section
+from .widgets import bottom_room, muted, section
 
 # POSIX TZ strings: the ESP32 has no time zone database, so it needs these.
 TIMEZONES = [
@@ -70,7 +70,6 @@ class SettingsTab:
         self._draw_swatches()
 
         self.view = ft.Column([
-            heading("Settings"),
             section("Connection", self.status, ft.Row([self.address, self.connect_btn]),
                     self.find_btn, self.progress, self.found_list,
                     note="The phone and the display must be on the same Wi-Fi."),
@@ -88,6 +87,7 @@ class SettingsTab:
                     self.upd_check,
                     note="New versions come from this project's releases on GitHub."),
             section("About", self.about),
+            bottom_room(),
         ], spacing=22, scroll=ft.ScrollMode.AUTO, expand=True)
         self.refresh()
 
@@ -115,7 +115,8 @@ class SettingsTab:
             self.tz.options.append(ft.DropdownOption(key=tz, text=tz))
         self.tz.value = tz
         rows = [("App", APP_VERSION), ("Firmware", d.hello.get("fw", "–")),
-                ("Protocol", f"{PROTO_VERSION}" + (" (display differs)" if d.proto_mismatch else ""))]
+                ("Protocol", f"{PROTO_VERSION}" + (" (display differs)" if d.proto_mismatch else "")),
+                ("By", "Vahid Anari"), ("Licence", "MIT"), ("Weather", "Open-Meteo")]
         self.about.controls = [ft.Row([muted(k, 14), ft.Text(v, size=14)],
                                       alignment=ft.MainAxisAlignment.SPACE_BETWEEN) for k, v in rows]
         self._refresh_updates()

@@ -8,6 +8,7 @@ to 127.0.0.1:8080 in Settings.
 import asyncio
 import logging
 import os
+import time
 
 import flet as ft
 
@@ -15,12 +16,15 @@ from core import preview
 from ui import theme
 from ui.app import App
 from ui.clock import ClockTab
-from ui.home import HomeTab
+from ui.home import ConnectionLine, HomeTab
 from ui.settings import SettingsTab
 from ui.texts import TextsTab
 from ui.tools import ToolsTab
 
 logging.basicConfig(level=os.getenv("DM_LOG", "WARNING"))
+
+SETTINGS = 4      # Settings is always the last tab
+EXIT_WINDOW = 2.0  # seconds for the second Back that leaves the app
 
 
 async def main(page: ft.Page):
@@ -34,21 +38,41 @@ async def main(page: ft.Page):
     if os.getenv("DM_HOST"):
         app.library.prefs["host"] = os.getenv("DM_HOST")
 
-    tabs: list = []
-    body = ft.Container(expand=True, padding=ft.Padding.only(left=16, right=16, top=8))
+    tabs: list = [HomeTab(app, open_settings=lambda: select(SETTINGS)), TextsTab(app), ClockTab(app),
+                  ToolsTab(app), SettingsTab(app)]
+    current = {"tab": 0, "asked_exit": None}  # the tab showing; when Back last said "again to exit"
+
+    # The app's name stays at the top on every tab, with the connection as one dim line under it.
+    conn = ConnectionLine(app, lambda e: select(SETTINGS), compact=True)
+    app.register(conn)
+    appbar = ft.AppBar(
+        title=ft.Column([ft.Text("Dot Matrix", size=20, weight=ft.FontWeight.BOLD), conn],
+                        spacing=0, tight=True),
+        toolbar_height=64,
+    )
 
     def select(i: int):
+        """Show tab i, whether it was tapped in the bar, swiped to, or chosen in code."""
         for t in tabs:
             app.unregister(t)
         tab = tabs[i]
         app.register(tab)
-        body.content = tab.view
+        current["tab"] = i
         nav.selected_index = i
+        if pager.selected_index != i:
+            pager.selected_index = i
         tab.refresh()
         page.update()
 
-    tabs.extend([HomeTab(app, open_settings=lambda: select(4)), TextsTab(app), ClockTab(app), ToolsTab(app),
-                 SettingsTab(app)])
+    def swiped(e):
+        i = int(e.data) if getattr(e, "data", None) not in (None, "") else e.control.selected_index
+        if i != current["tab"]:
+            select(i)
+
+    # The tabs side by side: a swipe slides to the next one, and the bar follows.
+    pager = ft.PageView(
+        [ft.Container(t.view, padding=ft.Padding.only(left=16, right=16, top=8), expand=True) for t in tabs],
+        selected_index=0, on_change=swiped, expand=True)
 
     nav = ft.NavigationBar(
         selected_index=0,
@@ -67,7 +91,24 @@ async def main(page: ft.Page):
         on_change=lambda e: select(e.control.selected_index),
     )
 
-    root = ft.View(route="/", controls=[ft.SafeArea(body, expand=True)], navigation_bar=nav, padding=0)
+    async def back(e):
+        """Android's Back on the tabs: from another tab to Home; on Home, a second Back
+        within EXIT_WINDOW seconds leaves the app (the first only says so). Pages opened
+        on top (a group, the editor) and dialogs close first, before this is asked."""
+        now = time.monotonic()
+        if current["tab"] != 0:
+            current["asked_exit"] = None
+            await e.control.confirm_pop(False)
+            select(0)
+        elif current["asked_exit"] is not None and now - current["asked_exit"] <= EXIT_WINDOW:
+            await e.control.confirm_pop(True)
+        else:
+            current["asked_exit"] = now
+            await e.control.confirm_pop(False)
+            app.toast("Press Back again to exit")
+
+    root = ft.View(route="/", appbar=appbar, controls=[ft.SafeArea(pager, expand=True)], navigation_bar=nav,
+                   padding=0, can_pop=False, on_confirm_pop=back)
     app.root = root
     page.views.clear()
     page.views.append(root)
@@ -83,10 +124,10 @@ async def main(page: ft.Page):
         """Four times a second, so clock and stopwatch previews run like the display."""
         while True:
             await asyncio.sleep(0.25)
-            current = tabs[nav.selected_index] if len(page.views) == 1 else None
-            if current is not None and hasattr(current, "tick") and current.tick():
+            showing = tabs[current["tab"]] if len(page.views) == 1 else None
+            if showing is not None and hasattr(showing, "tick") and showing.tick():
                 try:
-                    current.view.update()
+                    showing.view.update()
                 except Exception:  # noqa: BLE001 — page closing
                     return
 

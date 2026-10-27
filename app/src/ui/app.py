@@ -13,7 +13,7 @@ from core.library import Library
 
 from . import theme
 
-APP_VERSION = "0.5.0"  # must match app/pyproject.toml and the release tag (CI checks)
+APP_VERSION = "0.5.1"  # must match app/pyproject.toml and the release tag (CI checks)
 log = logging.getLogger("app")
 
 
@@ -148,7 +148,7 @@ class App:
     # -------------------------------------------------------------- messages
     def toast(self, text: str):
         self.page.show_dialog(ft.SnackBar(ft.Text(text), behavior=ft.SnackBarBehavior.FLOATING,
-                                          duration=3500))
+                                          duration=3000))
 
     def run(self, coro_fn, *args, ok: str | None = None, **kwargs):
         """Run a device action in the background; report errors as a toast."""

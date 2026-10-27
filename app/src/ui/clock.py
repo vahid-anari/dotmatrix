@@ -7,7 +7,7 @@ import flet as ft
 
 from core import preview, weather
 
-from .widgets import Debouncer, LabeledSlider, heading, led, muted, section
+from .widgets import Debouncer, LabeledSlider, bottom_room, led, muted, section
 
 EVERY = [(0, "Never"), (10, "Every 10 seconds"), (20, "Every 20 seconds"), (30, "Every 30 seconds"),
          (60, "Every minute"), (300, "Every 5 minutes")]
@@ -66,7 +66,6 @@ class ClockTab:
         ], spacing=14)
 
         self.view = ft.Column([
-            heading("Clock"),
             self.led,
             self.show_btn,
             section("Time", self.h24, self.secs),
@@ -79,6 +78,7 @@ class ClockTab:
                     note="The display fetches it from Open-Meteo every 15 minutes."),
             section("Night", self.night, self.night_rows,
                     note="Lowers the brightness during these hours, in every mode."),
+            bottom_room(),
         ], spacing=18, scroll=ft.ScrollMode.AUTO, expand=True)
         self.refresh()
 

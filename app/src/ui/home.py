@@ -7,7 +7,7 @@ from core import preview
 from core.items import new_text_item
 
 from .tools import fmt_stopwatch, fmt_timer
-from .widgets import LabeledSlider, heading, muted, section, status_dot
+from .widgets import LabeledSlider, bottom_room, muted, section, status_dot
 
 MODE_LABELS = {"text": "Texts", "clock": "Clock", "off": "Off"}
 
@@ -36,12 +36,15 @@ def uptime_words(seconds: int) -> str:
 class ConnectionLine(ft.Row):
     """Dot + one line of connection status. Tapping it opens Settings."""
 
-    def __init__(self, app, on_tap):
+    def __init__(self, app, on_tap, compact: bool = False):
         self.app = app
         self.dot = status_dot("#9AA5AE")
-        self.label = ft.Text(size=13, color=ft.Colors.ON_SURFACE_VARIANT)
-        super().__init__([ft.Container(ft.Row([self.dot, self.label], spacing=8), on_click=on_tap,
-                                       padding=ft.Padding.symmetric(vertical=4))], spacing=0)
+        # In the app bar it's one small dim line under the app's name.
+        self.label = ft.Text(size=12 if compact else 13, color=ft.Colors.ON_SURFACE_VARIANT,
+                             max_lines=1, overflow=ft.TextOverflow.ELLIPSIS)
+        super().__init__([ft.Container(ft.Row([self.dot, self.label], spacing=6 if compact else 8, tight=True),
+                                       on_click=on_tap,
+                                       padding=ft.Padding.symmetric(vertical=0 if compact else 4))], spacing=0)
         self.refresh()
 
     def refresh(self):
@@ -67,7 +70,6 @@ class HomeTab:
         self._brightness_touched = 0.0
         self._showing_message = False
 
-        self.conn = ConnectionLine(app, lambda e: open_settings())
         self.update_note = ft.Container(
             ft.Row([ft.Icon(ft.Icons.SYSTEM_UPDATE_ALT, size=16, color=ft.Colors.PRIMARY),
                     ft.Text(size=13, color=ft.Colors.PRIMARY)], spacing=6),
@@ -89,7 +91,7 @@ class HomeTab:
         self.facts = ft.Column(spacing=6)
 
         self.view = ft.Column([
-            ft.Column([heading("Dot Matrix"), self.conn, self.update_note], spacing=2),
+            self.update_note,
             ft.Container(self.now_image, bgcolor="#120A09", padding=10, border_radius=12),
             self.now_caption,
             ft.Container(height=4),
@@ -99,6 +101,7 @@ class HomeTab:
                                             vertical_alignment=ft.CrossAxisAlignment.START),
                     note="Scrolls across the display until you stop it."),
             section("This display", self.facts),
+            bottom_room(),
         ], spacing=18, scroll=ft.ScrollMode.AUTO, expand=True)
         self.refresh()
 
@@ -106,7 +109,6 @@ class HomeTab:
     def refresh(self):
         app, d = self.app, self.app.device
         st = d.state
-        self.conn.refresh()
         what = [w for w, yes in (("app", app.app_update), ("display", app.firmware_update)) if yes]
         self.update_note.visible = bool(what)
         if what:
