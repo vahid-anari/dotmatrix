@@ -10,6 +10,7 @@
 #include "modes/TimerMode.h"
 #include "net/Network.h"
 #include "net/Weather.h"
+#include "sensors/Sensors.h"
 #include "util/Led.h"
 
 class OffMode : public Mode {
@@ -26,6 +27,7 @@ class App {
   Settings settings;
   Network network;
   Weather weather;
+  Sensors sensors;
   TextMode textMode;
   ClockMode clockMode;
   OffMode offMode;

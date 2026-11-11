@@ -24,6 +24,26 @@
 
 The on-board LED (GPIO 8) shows the Wi-Fi state; nothing to connect.
 
+### Optional sensors
+
+A light sensor and a temperature/humidity/pressure sensor can share two more wires (I²C). Each is optional; the firmware finds whatever is fitted when it starts, and looks again every half minute.
+
+| Sensor | Pin | ESP32-C3 Super Mini |
+|---|---|---|
+| GY-302 (BH1750) light sensor | VCC | 3.3 |
+| | GND | G |
+| | SCL | GPIO 0 |
+| | SDA | GPIO 1 |
+| | ADDR | not connected |
+| GY-BME280 (temperature, humidity, pressure; a BMP280 board works too, without humidity) | VCC | 3.3 |
+| | GND | G |
+| | SCL | GPIO 0 |
+| | SDA | GPIO 1 |
+| | CSB | to the board's own VCC (keeps it on I²C) |
+| | SDO | not connected (either address is found) |
+
+Both run on 3.3 V, not 5 V. The readings go to the app with the display's state.
+
 The display has an **IN** side and an **OUT** side. The wires go to IN, on the module at the right-hand end when you look at the LEDs. The two 4-module boards are joined OUT → IN (VCC to VCC, GND to GND, DOUT to DIN, CS to CS, CLK to CLK), usually by soldering the pins straight across.
 
 ## Things to know

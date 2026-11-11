@@ -4,13 +4,15 @@
 // ---- Version -------------------------------------------------------------
 // Release builds set this from the git tag (see .github/workflows/build.yml).
 #ifndef FW_VERSION
-#define FW_VERSION "0.5.0-dev"
+#define FW_VERSION "0.6.0-dev"
 #endif
 #define PROTO_VERSION 1
 
 // ---- Hardware ------------------------------------------------------------
 constexpr uint8_t PIN_DISPLAY_CS = 7;   // MAX7219 CS (SPI: SCK=4, MOSI=6)
 constexpr uint8_t PIN_STATUS_LED = 8;   // on-board LED, active low
+constexpr uint8_t PIN_I2C_SDA = 1;      // optional sensors (BH1750, BME280)
+constexpr uint8_t PIN_I2C_SCL = 0;
 constexpr bool STATUS_LED_INVERTED = true;
 constexpr uint8_t DISPLAY_MODULES = 8;  // 8 × 8×8 = 64×8
 constexpr uint8_t DISPLAY_WIDTH = DISPLAY_MODULES * 8;

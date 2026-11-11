@@ -42,6 +42,7 @@ Wiring diagram, parts and tips: [HARDWARE.md](HARDWARE.md).
 | MCU | ESP32-C3 Super Mini |
 | Display | 8 × MAX7219 8×8 modules, FC-16 type, chained (64×8) |
 | Display SPI | CS = GPIO 7, hardware SPI (SCK = GPIO 4, MOSI = GPIO 6) |
+| Sensors (optional) | I²C on SDA = GPIO 1, SCL = GPIO 0: BH1750 light (0x23/0x5C), BME280 or BMP280 (0x76/0x77) |
 | Status LED | GPIO 8 (active low) |
 | Power | 5 V USB charger, always connected |
 | Planned | Temperature/humidity sensor on I²C (e.g. SHT31 or AHT20) |
@@ -211,7 +212,8 @@ Transport: WebSocket at `ws://dotmatrix.local/ws`, text frames, one JSON object 
  "min_free_heap": 170000, "last_reset": "power_on",
  "stopwatch": {"ms": 83120, "running": true},
  "timer": {"remaining_ms": 41000, "total_ms": 300000, "running": true, "done": false},
- "weather": {"temp": 8.4, "units": "c", "code": 61, "text": "Rain", "age": 420}}  // only with a reading
+ "weather": {"temp": 8.4, "units": "c", "code": 61, "text": "Rain", "age": 420},  // only with a reading
+ "sensors": {"lux": 120, "temp": 22.4, "humidity": 41, "pressure": 1003.2}}  // since 0.6.0; only sensors that answer
 ```
 
 Stopwatch and timer commands switch the display to that mode (not remembered across a reboot). Both keep running in the background when another mode is shown. When the timer reaches zero the display switches to it and blinks for a minute. Between `state` messages the app counts on from the last values, so its preview runs smoothly without extra traffic.

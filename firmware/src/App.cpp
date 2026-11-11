@@ -57,6 +57,7 @@ void App::begin() {
   Storage::loadSettings(settings);
   Storage::loadPlaylist(textMode.items, textMode.playlistName, sizeof(textMode.playlistName));
   display.setBrightness(settings.brightness);
+  sensors.begin();
 
   network.onOnline(&App::onOnline);
   network.begin(settings);
@@ -138,6 +139,7 @@ void App::loop() {
     LOG("ota: new firmware accepted");
   }
 
+  sensors.loop(now);
   checkBrightness(now);
   saveIfDue(now);
   updateLed();
@@ -371,6 +373,16 @@ void App::fillState(JsonDocument& doc) {
     wo["code"] = w.code;
     wo["text"] = Weather::describe(w.code);
     wo["age"] = (now - w.at) / 1000;
+  }
+  // Sensors that are fitted and have answered; values rounded for the app.
+  if (sensors.lightValid() || sensors.climateValid()) {
+    JsonObject so = doc["sensors"].to<JsonObject>();
+    if (sensors.lightValid()) so["lux"] = roundf(sensors.lux());
+    if (sensors.climateValid()) {
+      so["temp"] = roundf(sensors.tempC() * 10) / 10.0;
+      if (sensors.hasHumidity()) so["humidity"] = roundf(sensors.humidity());
+      so["pressure"] = roundf(sensors.pressureHPa() * 10) / 10.0;
+    }
   }
 }
 
