@@ -66,6 +66,7 @@ bool settingsUpdate(Settings& s, JsonObjectConst o, const char*& err) {
     }
     if (c["show_date"].is<bool>()) n.clock.showDate = c["show_date"];
     if (c["show_weather"].is<bool>()) n.clock.showWeather = c["show_weather"];
+    if (c["show_indoor"].is<bool>()) n.clock.showIndoor = c["show_indoor"];
     if (c["extras_style"].is<const char*>()) {
       const char* st = c["extras_style"];
       if (strcmp(st, "drop") && strcmp(st, "scroll")) return err = "extras_style must be drop or scroll", false;
@@ -144,6 +145,7 @@ void settingsToJson(const Settings& s, JsonObject o) {
   c["extras_every"] = s.clock.extrasEvery;
   c["show_date"] = s.clock.showDate;
   c["show_weather"] = s.clock.showWeather;
+  c["show_indoor"] = s.clock.showIndoor;  // since 0.6.0
   c["extras_style"] = s.clock.extrasDrop ? "drop" : "scroll";
   c["extras_pause"] = s.clock.extrasPause;
   // For apps from before 0.5, which still read the two intervals.

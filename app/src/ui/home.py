@@ -33,6 +33,23 @@ def uptime_words(seconds: int) -> str:
     return f"{m} min"
 
 
+def sensor_rows(sensors: dict, units: str = "c") -> list[tuple[str, str]]:
+    """The room readings from the display's sensors (firmware 0.6), as label/value
+    rows; only what the display reports."""
+    rows = []
+    if "temp" in sensors:
+        t = sensors["temp"]
+        rows.append(("Temperature", f"{t * 9 / 5 + 32:.1f} °F" if units == "f" else f"{t:.1f} °C"))
+    if "humidity" in sensors:
+        rows.append(("Humidity", f"{sensors['humidity']:.0f} %"))
+    if "pressure" in sensors:
+        rows.append(("Air pressure", f"{sensors['pressure']:.0f} hPa"))
+    if "lux" in sensors:
+        lux = sensors["lux"]
+        rows.append(("Light", f"{lux:.1f} lx" if lux < 10 else f"{lux:.0f} lx"))
+    return rows
+
+
 class ConnectionLine(ft.Row):
     """Dot + one line of connection status. Tapping it opens Settings."""
 
@@ -89,6 +106,13 @@ class HomeTab:
                                     max_length=128, counter="", on_submit=self._show_message)
         self.message_btn = ft.FilledButton("Show", icon=ft.Icons.PLAY_ARROW, on_click=self._show_message)
         self.facts = ft.Column(spacing=6)
+        self.room = ft.Column(spacing=6)
+        self.launcher = ft.UrlLauncher()
+        self.log_btn = ft.TextButton("Download the last two days (CSV)", icon=ft.Icons.DOWNLOAD,
+                                     on_click=self._download_log)
+        self.room_section = section("In the room", self.room, self.log_btn,
+                                    note="From the display's sensors. It keeps a reading a minute "
+                                         "for two days.")
 
         self.view = ft.Column([
             self.update_note,
@@ -100,6 +124,7 @@ class HomeTab:
             section("Quick message", ft.Row([self.message, self.message_btn],
                                             vertical_alignment=ft.CrossAxisAlignment.START),
                     note="Scrolls across the display until you stop it."),
+            self.room_section,
             section("This display", self.facts),
             bottom_room(),
         ], spacing=18, scroll=ft.ScrollMode.AUTO, expand=True)
@@ -143,6 +168,14 @@ class HomeTab:
         self.facts.controls = [
             ft.Row([muted(k, 14), ft.Text(v, size=14)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
             for k, v in rows]
+
+        sensors = st.get("sensors") if on else None
+        self.room_section.visible = bool(sensors)
+        if sensors:
+            units = d.settings.get("weather", {}).get("units", "c")
+            self.room.controls = [
+                ft.Row([muted(k, 14), ft.Text(v, size=14)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+                for k, v in sensor_rows(sensors, units)]
 
     def _now(self, mode: str, st: dict):
         d = self.app.device
@@ -207,6 +240,11 @@ class HomeTab:
 
     def _brightness_released(self, e):
         self._brightness_touched = time.monotonic()
+
+    async def _download_log(self, e):
+        """The phone's own browser fetches the file straight from the display."""
+        await self.launcher.launch_url(f"http://{self.app.device.host}/log.csv",
+                                       mode=ft.LaunchMode.EXTERNAL_APPLICATION)
 
     def _show_message(self, e):
         d = self.app.device

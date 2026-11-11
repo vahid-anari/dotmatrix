@@ -4,8 +4,8 @@
 #include "Mode.h"
 
 // Shows the time. Every `extras_every` seconds it makes way for the "extras",
-// one after the other: the date, then the weather outside (each if switched on;
-// the weather only with a reading).
+// one after the other: the date, the weather outside, then the room's
+// temperature and humidity (each if switched on and available).
 //
 // Drop style: the time slides up and away, each extra drops in from the top,
 // stays `extras_pause` ms and goes back up, then the time slides back up from
@@ -24,7 +24,7 @@ class ClockMode : public Mode {
   time_t _lastExtras = 0;
   Frame _frame;   // the time as last drawn
   Item _item;     // the extra Parola is showing
-  static constexpr uint8_t MAX_EXTRAS = 3;
+  static constexpr uint8_t MAX_EXTRAS = 3 + 1;
   char _extras[MAX_EXTRAS][MAX_TEXT + 1];
   uint8_t _count = 0, _next = 0;
   uint8_t _step = 0;  // 0..8, rows moved so far while the time slides

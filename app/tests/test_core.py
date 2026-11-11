@@ -376,3 +376,12 @@ def test_date_and_weather_settings():
     out = extras_settings({"every": 30, "show_date": True, "show_weather": False})
     assert out == {"extras_every": 30, "show_date": True, "show_weather": False,
                    "date_every": 30, "weather_every": 0}
+
+
+def test_sensor_rows():
+    from ui.home import sensor_rows
+    rows = dict(sensor_rows({"lux": 4.25, "temp": 22.4, "humidity": 41, "pressure": 1003.2}))
+    assert rows == {"Temperature": "22.4 °C", "Humidity": "41 %", "Air pressure": "1003 hPa", "Light": "4.2 lx"}
+    assert dict(sensor_rows({"temp": 20.0}, "f")) == {"Temperature": "68.0 °F"}
+    assert sensor_rows({"lux": 230}) == [("Light", "230 lx")]
+    assert sensor_rows({}) == []

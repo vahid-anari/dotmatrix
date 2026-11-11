@@ -56,7 +56,7 @@ settings = {
     "timezone": "EST5EDT,M3.2.0,M11.1.0",
     "clock": {"format_24h": True, "seconds": True, "date_every": 0, "date_format": "%a %b %d",
               "weather_every": 0, "extras_every": 0, "show_date": True, "show_weather": True,
-              "extras_style": "drop", "extras_pause": 3000},
+              "extras_style": "drop", "extras_pause": 3000, "show_indoor": True},
     "weather": {"place": "", "lat": 0, "lon": 0, "units": "c"},
     "night": {"enabled": False, "from": "23:00", "to": "07:00", "brightness": 1},
 }
@@ -136,7 +136,18 @@ def state_msg():
         "timer": {"remaining_ms": timer_remaining(), "total_ms": timer["total"],
                   "running": timer["clock"].running, "done": timer["done"]},
         **fake_weather(),
+        "sensors": {"lux": 85, "temp": 22.4, "humidity": 41, "pressure": 1003.2},
     }
+
+
+async def log_handler(request):
+    """A short made-up sensor log, in the device's format."""
+    rows = ["time,lux,temp_c,humidity,pressure_hpa,outdoor_c,brightness,mode"]
+    now = int(time.time()) // 60 * 60
+    for i in range(120, 0, -1):
+        t = time.strftime("%Y-%m-%d %H:%M", time.localtime(now - i * 60))
+        rows.append(f"{t},{85 + i % 7},{22.4 + (i % 10) / 100:.2f},41.0,1003.2,8.4,{settings['brightness']},text")
+    return web.Response(text="\n".join(rows) + "\n", content_type="text/csv")
 
 
 def fake_weather():
@@ -396,6 +407,7 @@ async def main():
 
     app = web.Application(client_max_size=4 * 2**20)
     app.add_routes([web.get("/ws", ws_handler), web.get("/api/status", status_handler),
+                    web.get("/log.csv", log_handler),
                     web.post("/update", update_handler)])
     runner = web.AppRunner(app)
     await runner.setup()

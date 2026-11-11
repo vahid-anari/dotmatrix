@@ -4,6 +4,22 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.6.0 — 2026-11-10
+
+Sensors, both optional (wiring in docs/HARDWARE.md):
+
+- A BH1750 light sensor (GY-302) and a BME280 for temperature, humidity and air
+  pressure (a BMP280 works too, without humidity), on GPIO 1 (SDA) and GPIO 0 (SCL).
+  The display finds whichever is fitted.
+- Home shows what they read, under "In the room".
+- The clock can show the room's temperature and humidity ("In 22°C 41%") after the
+  date and the weather (Clock → Date and weather).
+- The display keeps a reading a minute for two days, with its brightness, its mode
+  and the weather outside; Home → "Download the last two days" gets it as a CSV file
+  (or open `http://dotmatrix.local/log.csv`).
+- The light sensor sets its own sensitivity, like a camera's exposure: fine steps
+  in a dim room, and no ceiling in bright light.
+
 ## 0.5.1 — 2026-10-27
 
 The app now looks and behaves like Daftarche and Spoolbook:

@@ -1,4 +1,4 @@
-"""Clock: how the time looks, the date and the weather that pass by now and then,
+"""Clock: how the time looks, the date, the weather and the room that pass by now and then,
 and dimming at night."""
 import datetime as dt
 import time
@@ -28,6 +28,8 @@ class ClockTab:
         self.show_date = ft.Checkbox(label="The date", on_change=lambda e: self._extras(show_date=e.control.value))
         self.show_weather = ft.Checkbox(label="The weather outside",
                                         on_change=lambda e: self._extras(show_weather=e.control.value))
+        self.show_indoor = ft.Checkbox(label="The temperature and humidity in the room",
+                                       on_change=lambda e: self._clock(show_indoor=e.control.value))
         self.every = ft.Dropdown(label="How often", expand=True,
                                  options=[ft.DropdownOption(key=str(k), text=t) for k, t in EVERY],
                                  on_select=lambda e: self._extras(every=int(e.control.value)))
@@ -69,10 +71,10 @@ class ClockTab:
             self.led,
             self.show_btn,
             section("Time", self.h24, self.secs),
-            section("Date and weather", self.show_date, self.show_weather, ft.Row([self.every]),
+            section("Date and weather", self.show_date, self.show_weather, self.show_indoor, ft.Row([self.every]),
                     ft.Row([self.style], scroll=ft.ScrollMode.AUTO), self.style_old, self.pause,
                     note="Now and then the time makes way for them, one after the other: "
-                         "first the date, then the weather."),
+                         "first the date, then the weather, then the room."),
             section("Date", ft.Row([self.fmt])),
             section("Weather", self.w_old, self.w_rows,
                     note="The display fetches it from Open-Meteo every 15 minutes."),
@@ -86,7 +88,7 @@ class ClockTab:
         d = self.app.device
         on = d.connected
         for c in (self.show_btn, self.h24, self.secs, self.every, self.fmt, self.night, self.show_date,
-                  self.show_weather, self.style, self.pause.slider,
+                  self.show_weather, self.show_indoor, self.style, self.pause.slider,
                   self.from_btn, self.to_btn, self.night_b.slider, self.w_choose, self.w_units):
             c.disabled = not on
         # Firmware from before 0.4 has no weather (its settings don't mention it).
@@ -102,6 +104,9 @@ class ClockTab:
         self.style.visible = new_fw
         self.style_old.visible = not new_fw
         self.show_weather.visible = has_weather
+        # The room's temperature needs firmware 0.6 and a temperature sensor fitted.
+        self.show_indoor.visible = "show_indoor" in d.settings.get("clock", {}) and \
+            "temp" in d.state.get("sensors", {})
         if time.monotonic() - self._touched < 2:
             return  # don't fight the user's finger
         c = d.settings.get("clock", {})
@@ -110,6 +115,7 @@ class ClockTab:
         self.secs.value = c.get("seconds", True)
         x = extras_from(c)
         self.show_date.value, self.show_weather.value = x["show_date"], x["show_weather"]
+        self.show_indoor.value = c.get("show_indoor", True)
         self.every.value = str(x["every"])
         if self.every.value not in {str(k) for k, _ in EVERY}:
             self.every.options.append(ft.DropdownOption(key=self.every.value,

@@ -58,6 +58,7 @@ void App::begin() {
   Storage::loadPlaylist(textMode.items, textMode.playlistName, sizeof(textMode.playlistName));
   display.setBrightness(settings.brightness);
   sensors.begin();
+  SensorLog::begin();
 
   network.onOnline(&App::onOnline);
   network.begin(settings);
@@ -140,6 +141,8 @@ void App::loop() {
   }
 
   sensors.loop(now);
+  logSensors();
+  SensorLog::loop(now);
   checkBrightness(now);
   saveIfDue(now);
   updateLed();
@@ -215,6 +218,33 @@ void App::updateNotice() {
     _mode->end(*this);
     _mode->begin(*this);
   }
+}
+
+// ---------------------------------------------------------------- Sensor log
+
+// One row a minute, on the minute, while the clock is set and a sensor answers.
+void App::logSensors() {
+  if (!timeValid() || !(sensors.lightValid() || sensors.climateValid())) return;
+  time_t t = time(nullptr);
+  time_t minute = t - t % SensorLog::EVERY_S;
+  if (minute == _lastLogRow) return;
+  _lastLogRow = minute;
+  SensorLog::Row r;
+  r.time = minute;
+  r.lux = sensors.lightValid() ? sensors.lux() : NAN;
+  r.temp100 = sensors.climateValid() ? (int16_t)lroundf(sensors.tempC() * 100) : INT16_MIN;
+  r.hum100 = sensors.climateValid() && sensors.hasHumidity() ? (uint16_t)lroundf(sensors.humidity() * 100) : 0xFFFF;
+  r.pres10 = sensors.climateValid() ? (uint16_t)constrain(lroundf((sensors.pressureHPa() - 500) * 10), 0, 0xFFFE) : 0xFFFF;
+  r.outdoor10 = INT16_MIN;
+  Weather::Now w;
+  if (weather.current(w, millis())) {
+    float c = w.temp10 / 10.0f;
+    if (settings.weather.fahrenheit) c = (c - 32) * 5 / 9;
+    r.outdoor10 = (int16_t)lroundf(c * 10);
+  }
+  r.brightness = display.power() ? display.brightness() : 0xFF;
+  r.mode = SensorLog::modeIndex(_mode ? _mode->id() : "");
+  SensorLog::add(r);
 }
 
 // ---------------------------------------------------------------- Brightness
@@ -377,7 +407,7 @@ void App::fillState(JsonDocument& doc) {
   // Sensors that are fitted and have answered; values rounded for the app.
   if (sensors.lightValid() || sensors.climateValid()) {
     JsonObject so = doc["sensors"].to<JsonObject>();
-    if (sensors.lightValid()) so["lux"] = roundf(sensors.lux());
+    if (sensors.lightValid()) so["lux"] = sensors.lux() < 10 ? roundf(sensors.lux() * 10) / 10.0 : roundf(sensors.lux());
     if (sensors.climateValid()) {
       so["temp"] = roundf(sensors.tempC() * 10) / 10.0;
       if (sensors.hasHumidity()) so["humidity"] = roundf(sensors.humidity());

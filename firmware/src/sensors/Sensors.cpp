@@ -58,17 +58,39 @@ void Sensors::probe() {
 
 // ------------------------------------------------------------------- BH1750
 
+// High-resolution mode 2 (0.5 lx steps at the default measuring time), with
+// the measuring time set automatically, like a camera's exposure: 254 (3.7x
+// the default sensitivity, 0.11 lx steps, up to about 7400 lx) while it's dim,
+// 31 (up to about 60000 lx) when the reading gets near the top.
+constexpr uint8_t MT_DEFAULT = 69, MT_SENSITIVE = 254, MT_BRIGHT = 31;
+
+bool Sensors::setMeasuringTime(uint8_t mt) {
+  Wire.beginTransmission(_lightAddr);
+  Wire.write(0x40 | (mt >> 5));    // high 3 bits
+  if (Wire.endTransmission() != 0) return false;
+  Wire.beginTransmission(_lightAddr);
+  Wire.write(0x60 | (mt & 0x1F));  // low 5 bits
+  if (Wire.endTransmission() != 0) return false;
+  Wire.beginTransmission(_lightAddr);
+  Wire.write(0x11);                // continuous, high resolution mode 2
+  if (Wire.endTransmission() != 0) return false;
+  _mt = mt;
+  _skipLight = true;
+  return true;
+}
+
 bool Sensors::startLight(uint8_t addr) {
   Wire.beginTransmission(addr);
   Wire.write(0x01);  // power on
   if (Wire.endTransmission() != 0) return false;
-  Wire.beginTransmission(addr);
-  Wire.write(0x10);  // continuous, 1 lx resolution, a new value every 120 ms
-  if (Wire.endTransmission() != 0) return false;
   _lightAddr = addr;
+  if (!setMeasuringTime(MT_SENSITIVE)) {
+    _lightAddr = 0;
+    return false;
+  }
   _lightFails = 0;
   _luxValid = false;
-  _lastLight = millis();  // first value after one period
+  _lastLight = millis();  // first value after one period (a measurement takes up to 0.45 s)
   LOG("sensors: BH1750 light sensor at 0x%02X", addr);
   return true;
 }
@@ -76,7 +98,17 @@ bool Sensors::startLight(uint8_t addr) {
 bool Sensors::readLight() {
   if (Wire.requestFrom(_lightAddr, (uint8_t)2) != 2) return false;
   uint16_t raw = (Wire.read() << 8) | Wire.read();
-  _lux = raw / 1.2f;
+  if (_skipLight) {  // measured partly with the old time
+    _skipLight = false;
+    return true;
+  }
+  _lux = raw / 1.2f / 2 * MT_DEFAULT / _mt;
+  _luxValid = true;
+  // Near the top: shorten the measuring time. Dim enough again: lengthen it.
+  if (_mt == MT_SENSITIVE && raw > 60000)
+    setMeasuringTime(MT_BRIGHT);
+  else if (_mt == MT_BRIGHT && raw < 6000)  // 6000 at 31 is about 49000 at 254
+    setMeasuringTime(MT_SENSITIVE);
   return true;
 }
 
@@ -177,7 +209,6 @@ void Sensors::loop(uint32_t now) {
   if (hasLight() && now - _lastLight >= LIGHT_EVERY_MS) {
     _lastLight = now;
     if (readLight()) {
-      _luxValid = true;
       _lightFails = 0;
     } else if (++_lightFails >= MAX_FAILS) {
       LOG("sensors: light sensor stopped answering");
@@ -201,7 +232,7 @@ void Sensors::loop(uint32_t now) {
   if (now - _lastLog >= LOG_EVERY_MS && (lightValid() || climateValid())) {
     _lastLog = now;
     char l[24] = "", c[64] = "";
-    if (lightValid()) snprintf(l, sizeof(l), "%.0f lx", _lux);
+    if (lightValid()) snprintf(l, sizeof(l), _lux < 10 ? "%.1f lx" : "%.0f lx", _lux);
     if (climateValid()) {
       if (_isBme)
         snprintf(c, sizeof(c), "%.1f C, %.0f %%, %.1f hPa", _tempC, _hum, _hPa);

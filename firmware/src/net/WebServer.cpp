@@ -1,5 +1,7 @@
 #include "WebServer.h"
 
+#include "../sensors/SensorLog.h"
+
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <Update.h>
@@ -218,6 +220,13 @@ void WebServer::begin() {
     r->send(200, "application/json", s);
   });
   server.on("/api/scan", HTTP_GET, handleScan);
+  // The last two days of sensor readings, one row a minute (see SensorLog).
+  server.on("/log.csv", HTTP_GET, [](AsyncWebServerRequest* r) {
+    AsyncWebServerResponse* res = r->beginChunkedResponse(
+        "text/csv", [](uint8_t* buf, size_t max, size_t index) { return SensorLog::csvChunk(buf, max, index); });
+    res->addHeader("Content-Disposition", "attachment; filename=\"dotmatrix-log.csv\"");
+    r->send(res);
+  });
   server.on("/api/wifi", HTTP_POST, handleWifi);
   server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
 

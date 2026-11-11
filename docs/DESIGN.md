@@ -222,7 +222,7 @@ The device sends `state` when it changes, plus once every 5 s. The `hello` lists
 
 **Weather.** With a place set, the display asks Open-Meteo (`http://api.open-meteo.com/v1/forecast`, free, no account) for the current temperature and WMO weather code every 15 minutes, or every 2 minutes after a failure, in a background task so a slow answer never stalls the display. Plain HTTP saves the TLS handshake; the data is public. Every `extras_every` seconds the clock makes way for the date and then the weather (each if switched on), as "8°C Rain" (° is character 0xB0 of the font; the display uses one short word, so even "-12°C Cloudy" fits on 64 columns). Drop style: the time slides up and away, each one drops in from the top, stays `extras_pause` ms and goes back up, then the time slides back up from below. Scroll style: each scrolls across from the right. A text too wide for the display always scrolls across. Firmware before 0.5 had `date_every` and `weather_every`; both are still accepted (a non-zero one switches that item on and sets the shared interval) and still reported, for older apps. A reading older than 2 hours isn't shown. The app finds the place with Open-Meteo's place search, from the phone.
 
-HTTP on port 80: `/` setup page, `/api/status`, `/api/scan`, `POST /api/wifi` (form: `ssid`, `password`), `POST /update` (firmware `.bin`). The setup network is `DotMatrix-XXXX` with password `dotmatrix`.
+HTTP on port 80: `/` setup page, `/api/status`, `/api/scan`, `POST /api/wifi` (form: `ssid`, `password`), `POST /update` (firmware `.bin`), `/log.csv` (since 0.6.0: the sensor readings of the last two days, one row a minute: time, lux, temp_c, humidity, pressure_hpa, outdoor_c, brightness, mode; kept in RAM and saved to `/sensorlog.bin` every ten minutes). The setup network is `DotMatrix-XXXX` with password `dotmatrix`.
 
 **ITEM** — `type` is `text` (default) or `animation`
 
@@ -261,7 +261,7 @@ Effect IDs are snake_case (`no_effect`, `print`, `scroll_up`, ... `sprite_pacman
   "brightness": 8,
   "clock": {"format_24h": true, "seconds": true, "date_format": "%a %b %d",
             "extras_every": 30,                 // seconds between date/weather, 0 = never (since 0.5)
-            "show_date": true, "show_weather": true,
+            "show_date": true, "show_weather": true, "show_indoor": true,
             "extras_style": "drop",             // drop | scroll
             "extras_pause": 3000,               // ms each stays (drop)
             "date_every": 30, "weather_every": 30},  // the same, as firmware before 0.5 had it

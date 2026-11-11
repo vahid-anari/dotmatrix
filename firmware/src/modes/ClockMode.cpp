@@ -53,6 +53,17 @@ bool ClockMode::startExtras(App& app, time_t t, uint32_t now) {
   }
   if (c.showWeather && app.weather.text(_extras[_count], sizeof(_extras[0]), app.settings.weather.fahrenheit, now))
     _count++;
+  if (c.showIndoor && app.sensors.climateValid()) {
+    bool f = app.settings.weather.fahrenheit;
+    float t = app.sensors.tempC();
+    if (f) t = t * 9 / 5 + 32;
+    if (app.sensors.hasHumidity())
+      snprintf(_extras[_count], sizeof(_extras[0]), "In %d\xB0%c %d%%", (int)lroundf(t), f ? 'F' : 'C',
+               (int)lroundf(app.sensors.humidity()));
+    else
+      snprintf(_extras[_count], sizeof(_extras[0]), "In %d\xB0%c", (int)lroundf(t), f ? 'F' : 'C');
+    _count++;
+  }
   if (!_count) return false;
   if (c.extrasDrop) {
     _phase = Phase::TimeOut;  // the time slides up and away first

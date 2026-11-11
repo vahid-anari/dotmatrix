@@ -29,6 +29,8 @@ class Sensors {
   float _lux = 0, _tempC = 0, _hum = 0, _hPa = 0;
   uint32_t _lastLight = 0, _lastClimate = 0, _lastProbe = 0, _lastLog = 0;
   uint8_t _lightFails = 0, _bmeFails = 0;
+  uint8_t _mt = 254;        // BH1750 measuring time (31..254): longer = more sensitive
+  bool _skipLight = false;  // the first value after a change of _mt is mixed; drop it
 
   // BME280 calibration
   uint16_t _T1, _P1;
@@ -40,5 +42,6 @@ class Sensors {
   bool startLight(uint8_t addr);
   bool startBme(uint8_t addr);
   bool readLight();
+  bool setMeasuringTime(uint8_t mt);
   bool readClimate();
 };

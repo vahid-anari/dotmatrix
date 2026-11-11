@@ -10,6 +10,7 @@
 #include "modes/TimerMode.h"
 #include "net/Network.h"
 #include "net/Weather.h"
+#include "sensors/SensorLog.h"
 #include "sensors/Sensors.h"
 #include "util/Led.h"
 
@@ -61,6 +62,7 @@ class App {
   uint32_t _lastBrightnessCheck = 0;
   uint8_t _appliedBase = 255;
   uint32_t _rebootAt = 0;
+  time_t _lastLogRow = 0;
   bool _stateChanged = false;
   const char* _resetReason = "";
   bool _otaPendingVerify = false;
@@ -74,6 +76,7 @@ class App {
   void saveIfDue(uint32_t now);
   void checkBrightness(uint32_t now);
   void updateLed();
+  void logSensors();
 
   // Protocol
   void handleEvents();
