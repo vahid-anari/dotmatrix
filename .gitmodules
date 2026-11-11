@@ -1,0 +1,3 @@
+[submodule "case/partbin"]
+	path = case/partbin
+	url = https://github.com/vahid-anari/partbin

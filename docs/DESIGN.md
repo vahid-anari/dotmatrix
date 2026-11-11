@@ -45,7 +45,7 @@ Wiring diagram, parts and tips: [HARDWARE.md](HARDWARE.md).
 | Sensors (optional) | I²C on SDA = GPIO 1, SCL = GPIO 0: BH1750 light (0x23/0x5C), BME280 or BMP280 (0x76/0x77) |
 | Status LED | GPIO 8 (active low) |
 | Power | 5 V USB charger, always connected |
-| Planned | Temperature/humidity sensor on I²C (e.g. SHT31 or AHT20) |
+| Case | `case/`: one-piece body and back cover, standing upright on a shelf (OpenSCAD, board models from the partbin submodule) |
 
 Wi-Fi TX power is capped at 8.5 dBm, because many C3 Super Mini boards have a weak antenna layout and drop the link at full power.
 
@@ -319,7 +319,7 @@ Local builds report `X.Y.Z-dev`, which sorts just below release `X.Y.Z`.
 | **M2: App core** | Device client, Home, Texts (+ live preview, animation items), Clock, Settings, fake device |
 | **M3: Extras** | Stopwatch and timer on the device, OTA from the app, app update check, CI releases (night dimming already came with M1) |
 | **M4: Effects** | Remaining animations (`starfield`, `life`, `fireworks`, `equalizer`, `snake`, `sprite_run`), overlays (`wave`, `sparkle`, `pulse`, `border`), laser effects (`laser_write`, `laser_scan`, `laser_cut`, `laser_beam`). Animated preview in the app editor (§7) |
-| **M5: Weather and sensors** | Outside weather from Open-Meteo in the clock (done, 0.4.0); temperature/humidity sensor later |
+| **M5: Weather and sensors** | Outside weather from Open-Meteo in the clock (done, 0.4.0); BH1750 light and BME280 sensors, the room in the clock and on Home, a two-day log as `/log.csv` (done, 0.6.0); automatic brightness from the light sensor next, designed from that log |
 
 ## 10. Open questions
 

@@ -10,6 +10,7 @@
 | 2 × MAX7219 4-in-1 8×8 LED matrix (FC-16 type) | Together 64 × 8 LEDs. Eight single modules chained work too. |
 | 5 wires | Dupont jumper wires, or soldered. Keep them short (under ~20 cm) and the clock wire away from the power wires. |
 | 5 V USB charger, 2 A or more, and a USB-C cable | The display draws everything through the ESP32 board. |
+| Optional: GY-BME280 and GY-302 (BH1750) | Temperature, humidity and air pressure, and light; see below. |
 | Optional: 470–1000 µF electrolytic capacitor, 10 V or more | Across VCC and GND at the display's input. It smooths the current spikes when many LEDs switch at once. |
 
 ## Connections
@@ -25,6 +26,8 @@
 The on-board LED (GPIO 8) shows the Wi-Fi state; nothing to connect.
 
 ### Optional sensors
+
+![Sensors: VCC to 3.3, GND to G, SDA to GPIO 1, SCL to GPIO 0](wiring-sensors.svg)
 
 A light sensor and a temperature/humidity/pressure sensor can share two more wires (I²C). Each is optional; the firmware finds whatever is fitted when it starts, and looks again every half minute.
 

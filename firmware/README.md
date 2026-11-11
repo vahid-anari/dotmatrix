@@ -33,6 +33,8 @@ Local builds report version `X.Y.Z-dev` (`FW_VERSION` in `src/config.h`); releas
 | CS | GPIO 7 |
 | CLK | GPIO 4 (SCK) |
 
+Optional sensors on I²C: SDA to GPIO 1, SCL to GPIO 0, VCC to 3.3 V, for a BH1750 light sensor and a BME280 (or BMP280). The firmware finds them by itself; details in [`../docs/HARDWARE.md`](../docs/HARDWARE.md). Their readings of the last two days, one a minute, are at `http://dotmatrix.local/log.csv`.
+
 ## First start
 
 1. After flashing, the display scrolls **"Setup: join Wi-Fi DotMatrix-XXXX password dotmatrix"**.

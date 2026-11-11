@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 440" width="920" height="440" font-family="Helvetica, Arial, sans-serif">
+  <title>Dot Matrix sensors: GY-302 (BH1750) and GY-BME280 on the ESP32-C3 Super Mini, I2C</title>
+  <rect x="0" y="0" width="920" height="440" rx="14" fill="#ffffff"/>
+  <text x="30" y="40" font-size="20" font-weight="bold" fill="#1d2733">Sensors (optional)</text>
+  <text x="30" y="62" font-size="13" fill="#5a6876">Both share four wires: 3.3 V, ground and the I²C pair. Fit either one, both or none.</text>
+  <rect x="60" y="96" width="230" height="102" rx="5" fill="#2a5fa8"/>
+  <text x="72" y="120" font-size="13" font-weight="bold" fill="#ffffff">GY-302</text>
+  <text x="72" y="138" font-size="11" fill="#e6e0f0">BH1750 light sensor</text>
+  <circle cx="278" cy="112" r="5" fill="#d9b455"/>
+  <text x="268" y="116" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="end">VCC</text>
+  <circle cx="278" cy="130" r="5" fill="#d9b455"/>
+  <text x="268" y="134" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="end">GND</text>
+  <circle cx="278" cy="148" r="5" fill="#d9b455"/>
+  <text x="268" y="152" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="end">SCL</text>
+  <circle cx="278" cy="166" r="5" fill="#d9b455"/>
+  <text x="268" y="170" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="end">SDA</text>
+  <circle cx="278" cy="184" r="5" fill="#d9b455"/>
+  <text x="268" y="188" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="end">ADDR</text>
+  <rect x="60" y="236" width="230" height="120" rx="5" fill="#6b3fa0"/>
+  <text x="72" y="260" font-size="13" font-weight="bold" fill="#ffffff">GY-BME280</text>
+  <text x="72" y="278" font-size="11" fill="#e6e0f0">temperature, humidity, pressure</text>
+  <circle cx="278" cy="252" r="5" fill="#d9b455"/>
+  <text x="268" y="256" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="end">VCC</text>
+  <circle cx="278" cy="270" r="5" fill="#d9b455"/>
+  <text x="268" y="274" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="end">GND</text>
+  <circle cx="278" cy="288" r="5" fill="#d9b455"/>
+  <text x="268" y="292" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="end">SCL</text>
+  <circle cx="278" cy="306" r="5" fill="#d9b455"/>
+  <text x="268" y="310" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="end">SDA</text>
+  <circle cx="278" cy="324" r="5" fill="#d9b455"/>
+  <text x="268" y="328" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="end">CSB</text>
+  <circle cx="278" cy="342" r="5" fill="#d9b455"/>
+  <text x="268" y="346" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="end">SDO</text>
+  <g font-size="11" fill="#5a6876">
+    <text x="298" y="188">not connected</text>
+    <text x="298" y="346">not connected</text>
+    <text x="298" y="328">to its own VCC</text>
+  </g>
+  <rect x="741" y="92" width="38" height="16" rx="5" fill="#9aa3ab"/>
+  <text x="760" y="84" font-size="11" fill="#5a6876" text-anchor="middle">USB-C</text>
+  <rect x="700" y="106" width="120" height="196" rx="6" fill="#1b3a6b"/>
+  <text x="760" y="322" font-size="12" fill="#1d2733" text-anchor="middle" font-weight="bold">ESP32-C3 Super Mini</text>
+  <circle cx="712" cy="130" r="5" fill="#d9b455"/><circle cx="808" cy="130" r="5" fill="#d9b455"/>
+  <text x="722" y="134" font-size="10" fill="#9fb0c8">5V</text>
+  <text x="798" y="134" font-size="10" fill="#9fb0c8" text-anchor="end">5</text>
+  <circle cx="712" cy="152" r="5" fill="#d9b455"/><circle cx="808" cy="152" r="5" fill="#d9b455"/>
+  <text x="722" y="156" font-size="10" fill="#ffffff" font-weight="bold">G</text>
+  <text x="798" y="156" font-size="10" fill="#9fb0c8" text-anchor="end">6</text>
+  <circle cx="712" cy="174" r="5" fill="#d9b455"/><circle cx="808" cy="174" r="5" fill="#d9b455"/>
+  <text x="722" y="178" font-size="10" fill="#ffffff" font-weight="bold">3.3</text>
+  <text x="798" y="178" font-size="10" fill="#9fb0c8" text-anchor="end">7</text>
+  <circle cx="712" cy="196" r="5" fill="#d9b455"/><circle cx="808" cy="196" r="5" fill="#d9b455"/>
+  <text x="722" y="200" font-size="10" fill="#9fb0c8">4</text>
+  <text x="798" y="200" font-size="10" fill="#9fb0c8" text-anchor="end">8</text>
+  <circle cx="712" cy="218" r="5" fill="#d9b455"/><circle cx="808" cy="218" r="5" fill="#d9b455"/>
+  <text x="722" y="222" font-size="10" fill="#9fb0c8">3</text>
+  <text x="798" y="222" font-size="10" fill="#9fb0c8" text-anchor="end">9</text>
+  <circle cx="712" cy="240" r="5" fill="#d9b455"/><circle cx="808" cy="240" r="5" fill="#d9b455"/>
+  <text x="722" y="244" font-size="10" fill="#9fb0c8">2</text>
+  <text x="798" y="244" font-size="10" fill="#9fb0c8" text-anchor="end">10</text>
+  <circle cx="712" cy="262" r="5" fill="#d9b455"/><circle cx="808" cy="262" r="5" fill="#d9b455"/>
+  <text x="722" y="266" font-size="10" fill="#ffffff" font-weight="bold">1</text>
+  <text x="798" y="266" font-size="10" fill="#9fb0c8" text-anchor="end">20</text>
+  <circle cx="712" cy="284" r="5" fill="#d9b455"/><circle cx="808" cy="284" r="5" fill="#d9b455"/>
+  <text x="722" y="288" font-size="10" fill="#ffffff" font-weight="bold">0</text>
+  <text x="798" y="288" font-size="10" fill="#9fb0c8" text-anchor="end">21</text>
+  <g fill="none" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M278,112 H480" stroke="#f08c00"/>
+    <path d="M278,252 H480" stroke="#f08c00"/>
+    <path d="M480,112 V252" stroke="#f08c00"/>
+    <path d="M480,174 H712" stroke="#f08c00"/>
+    <path d="M278,130 H505" stroke="#222222"/>
+    <path d="M278,270 H505" stroke="#222222"/>
+    <path d="M505,130 V270" stroke="#222222"/>
+    <path d="M505,152 H712" stroke="#222222"/>
+    <path d="M278,148 H430" stroke="#0f9fa8"/>
+    <path d="M278,288 H430" stroke="#0f9fa8"/>
+    <path d="M430,148 V288" stroke="#0f9fa8"/>
+    <path d="M430,284 H712" stroke="#0f9fa8"/>
+    <path d="M278,166 H455" stroke="#8e44ad"/>
+    <path d="M278,306 H455" stroke="#8e44ad"/>
+    <path d="M455,166 V306" stroke="#8e44ad"/>
+    <path d="M455,262 H712" stroke="#8e44ad"/>
+  </g>
+  <g fill="#1d2733"><circle cx="480" cy="112" r="3"/><circle cx="480" cy="252" r="3"/><circle cx="480" cy="174" r="3"/><circle cx="505" cy="130" r="3"/><circle cx="505" cy="270" r="3"/><circle cx="505" cy="152" r="3"/><circle cx="430" cy="148" r="3"/><circle cx="430" cy="288" r="3"/><circle cx="430" cy="284" r="3"/><circle cx="455" cy="166" r="3"/><circle cx="455" cy="306" r="3"/><circle cx="455" cy="262" r="3"/></g>
+  <g font-size="13" fill="#1d2733">
+    <rect x="30" y="380" width="22" height="5" fill="#f08c00"/><text x="60" y="386">VCC → 3.3 (not 5V)</text>
+    <rect x="245" y="380" width="22" height="5" fill="#222222"/><text x="275" y="386">GND → G</text>
+    <rect x="460" y="380" width="22" height="5" fill="#8e44ad"/><text x="490" y="386">SDA → GPIO 1</text>
+    <rect x="675" y="380" width="22" height="5" fill="#0f9fa8"/><text x="705" y="386">SCL → GPIO 0</text>
+  </g>
+  <text x="30" y="410" font-size="12" fill="#5a6876">On the BME280, a short wire from CSB to the board's own VCC keeps the chip on I²C. A BMP280 board works too, without humidity.</text>
+</svg>

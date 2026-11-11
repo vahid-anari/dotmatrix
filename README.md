@@ -10,22 +10,30 @@ Wi-Fi. It plays a list of texts with entry and exit effects (scrolling, sprites 
 Pacman, and four laser effects of its own), effects over a text while it stays
 (wave, sparkle, pulse, border) and animations of their own (Matrix rain, a
 starfield, the Game of Life, fireworks, an equalizer, a snake that plays by itself).
-It also shows the time, with the date and the weather outside dropping in now and
-then, and runs a stopwatch and a countdown timer.
+It also shows the time, with the date, the weather outside and the room's
+temperature dropping in now and then, and runs a stopwatch and a countdown timer.
+Two optional sensors measure the room: temperature, humidity and air pressure, and
+light.
 
 The playlist is stored on the display, so it keeps playing on its own when the phone
 is away and comes back by itself after a power cut. The time comes from the internet,
 with daylight saving and dimming at night.
 
-<img src="https://raw.githubusercontent.com/vahid-anari/dotmatrix/main/case/images/front.png" width="700" alt="The display in its 3D-printed desk case, showing DotMatrix">
+<img src="https://raw.githubusercontent.com/vahid-anari/dotmatrix/main/case/images/front.png" width="700" alt="The display in its 3D-printed case, showing DotMatrix">
+
+<img src="https://raw.githubusercontent.com/vahid-anari/dotmatrix/main/docs/images/app.png" width="700" alt="The app: Home with the room's readings, the groups of texts, the editor, and the clock settings">
 
 ## Installation
 
 **The display.** An ESP32-C3 Super Mini, two MAX7219 4-in-1 boards (FC-16 type) and
 five wires; [`docs/HARDWARE.md`](docs/HARDWARE.md) has the parts, the connections and
-some tips, and [`case/`](case/) a 3D-printable desk case.
+some tips, and [`case/`](case/) a 3D-printable case that stands on a shelf. A GY-BME280
+(temperature, humidity, air pressure) and a GY-302 light sensor can be added with four
+more wires, shared by both.
 
 <img src="https://raw.githubusercontent.com/vahid-anari/dotmatrix/main/docs/wiring.svg" width="700" alt="Wiring: VCC to 5V, GND to G, DIN to GPIO 6, CS to GPIO 7, CLK to GPIO 4">
+
+<img src="https://raw.githubusercontent.com/vahid-anari/dotmatrix/main/docs/wiring-sensors.svg" width="700" alt="Sensors: VCC to 3.3, GND to G, SDA to GPIO 1, SCL to GPIO 0, for both">
 
 The firmware goes on once over USB, with [PlatformIO](https://platformio.org):
 
@@ -55,9 +63,12 @@ plays over it meanwhile, its alignment and brightness, or an animation that runs
 a set time. The editor's LED strip plays the item over and over the way the display
 will, and with "Show on the display while editing" the display plays it too. Home
 shows what the display is doing, switches between texts, clock and off, sets the
-brightness and sends a quick message. Clock sets 12- or 24-hour time; whether the date
-and the weather come by, one after the other, how often, and whether they drop in from
-the top or scroll across; the place for the weather; and the hours of night dimming. Tools runs the stopwatch and the timer on the display: they keep going
+brightness and sends a quick message; with the sensors fitted it also shows the room's
+temperature, humidity, air pressure and light, and downloads the last two days of
+readings, one a minute, as a CSV file. Clock sets 12- or 24-hour time; whether the
+date, the weather and the room's temperature come by, one after the other, how often,
+and whether they drop in from the top or scroll across; the place for the weather; and
+the hours of night dimming. Tools runs the stopwatch and the timer on the display: they keep going
 when the phone is put away, and the timer takes over the display and blinks when it
 reaches zero. Settings has the connection, the display's name and time zone, the
 app's look (light, dark or as the phone is set, and the LED colour of your display),
@@ -68,8 +79,8 @@ example `python tools/dm.py say "Hello"` or `python tools/dm.py watch`.
 
 ## Your data
 
-The display keeps its playlist and settings in its own flash memory; the Wi-Fi
-password stays on the display. The app keeps your groups in one file in its private
+The display keeps its playlist and settings in its own flash memory, with the last
+two days of sensor readings; the Wi-Fi password stays on the display. The app keeps your groups in one file in its private
 storage on the phone; Settings → Your texts exports them to a file and imports them
 again, for a new phone or a backup. Nothing goes anywhere else: the only outside
 services are GitHub, for updates, and Open-Meteo, which the display asks for the
@@ -78,6 +89,7 @@ weather of the place you chose.
 ## Development
 
 ```
+git clone --recursive https://github.com/vahid-anari/dotmatrix   # --recursive brings the case's board models
 cd app && python -m pytest               # app tests
 cd firmware && ./test_host/run.sh        # firmware tests on the computer
 python tools/fake_device.py              # a pretend display, for the app without hardware
@@ -89,8 +101,8 @@ the protocol between app and display, and the roadmap. GitHub Actions builds the
 firmware and the APK on every push; a push that raises the version in
 `app/pyproject.toml` (and `APP_VERSION`) publishes them as a release, which the app
 then offers as an update; [`CHANGELOG.md`](CHANGELOG.md) lists what each version
-changed. Planned next: a temperature and humidity sensor, automatic
-brightness from a light sensor, and signed firmware updates.
+changed. Planned next: automatic brightness from the light sensor, and
+signed firmware updates.
 
 ## Support
 

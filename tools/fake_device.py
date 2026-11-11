@@ -55,9 +55,9 @@ settings = {
     "hostname": "dotmatrix",
     "timezone": "EST5EDT,M3.2.0,M11.1.0",
     "clock": {"format_24h": True, "seconds": True, "date_every": 0, "date_format": "%a %b %d",
-              "weather_every": 0, "extras_every": 0, "show_date": True, "show_weather": True,
+              "weather_every": 0, "extras_every": 60, "show_date": True, "show_weather": True,
               "extras_style": "drop", "extras_pause": 3000, "show_indoor": True},
-    "weather": {"place": "", "lat": 0, "lon": 0, "units": "c"},
+    "weather": {"place": "Toronto, Ontario, Canada", "lat": 43.65, "lon": -79.38, "units": "c"},
     "night": {"enabled": False, "from": "23:00", "to": "07:00", "brightness": 1},
 }
 
