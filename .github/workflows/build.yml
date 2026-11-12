@@ -181,7 +181,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install "flet==1.0.4" "websockets>=13,<18" pytest
+      - run: pip install "flet==1.0.4" "websockets>=13,<18" tzdata pytest
       - working-directory: app
         run: python -m pytest -q
 
