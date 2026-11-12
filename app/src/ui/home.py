@@ -204,7 +204,7 @@ class HomeTab:
 
     def clock_text(self) -> str:
         c = self.app.device.settings.get("clock", {})
-        t = time.localtime()
+        t = self.app.device.local_time()
         h = t.tm_hour if c.get("format_24h", True) else (t.tm_hour % 12 or 12)
         hh = f"{h:02d}" if c.get("format_24h", True) else str(h)
         return f"{hh}:{t.tm_min:02d}:{t.tm_sec:02d}" if c.get("seconds", True) else f"{hh}:{t.tm_min:02d}"

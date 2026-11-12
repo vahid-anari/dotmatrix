@@ -52,27 +52,21 @@ async def main(page: ft.Page):
     )
 
     def select(i: int):
-        """Show tab i, whether it was tapped in the bar, swiped to, or chosen in code."""
+        """Show tab i, whether it was tapped in the bar or chosen in code."""
         for t in tabs:
             app.unregister(t)
         tab = tabs[i]
         app.register(tab)
         current["tab"] = i
         nav.selected_index = i
-        if pager.selected_index != i:
-            pager.selected_index = i
+        body.content = pages[i]
         tab.refresh()
         page.update()
 
-    def swiped(e):
-        i = int(e.data) if getattr(e, "data", None) not in (None, "") else e.control.selected_index
-        if i != current["tab"]:
-            select(i)
-
-    # The tabs side by side: a swipe slides to the next one, and the bar follows.
-    pager = ft.PageView(
-        [ft.Container(t.view, padding=ft.Padding.only(left=16, right=16, top=8), expand=True) for t in tabs],
-        selected_index=0, on_change=swiped, expand=True)
+    # One tab at a time; only the bar below changes it (no swiping: a swipe on a
+    # slider would change the tab instead).
+    pages = [ft.Container(t.view, padding=ft.Padding.only(left=16, right=16, top=8), expand=True) for t in tabs]
+    body = ft.Container(pages[0], expand=True)
 
     nav = ft.NavigationBar(
         selected_index=0,
@@ -107,7 +101,7 @@ async def main(page: ft.Page):
             await e.control.confirm_pop(False)
             app.toast("Press Back again to exit")
 
-    root = ft.View(route="/", appbar=appbar, controls=[ft.SafeArea(pager, expand=True)], navigation_bar=nav,
+    root = ft.View(route="/", appbar=appbar, controls=[ft.SafeArea(body, expand=True)], navigation_bar=nav,
                    padding=0, can_pop=False, on_confirm_pop=back)
     app.root = root
     page.views.clear()

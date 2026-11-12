@@ -403,3 +403,10 @@ def test_location():
                                    "timezone": "EST5EDT,M3.2.0,M11.1.0"}
     p.tz = "Nowhere/Place"
     assert "timezone" not in location_changes(p)
+
+
+def test_display_time():
+    from core.device import display_time
+    t = display_time("2026-11-12 23:59:58", 3.4)
+    assert (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec) == (2026, 11, 13, 0, 0, 1)
+    assert display_time(None, 0).tm_year >= 2026   # no time from the display: the phone's

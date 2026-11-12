@@ -4,6 +4,13 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.7.1 — 2026-11-12
+
+- The clock drawn in the app shows the display's time, in the display's time zone,
+  even when the phone is somewhere else (it used to show the phone's time).
+- The tabs change only from the bar at the bottom: no more swiping between them,
+  which a drag on a slider could set off.
+
 ## 0.7.0 — 2026-11-12
 
 - One location for the display, chosen by name in Settings → Location: it sets both

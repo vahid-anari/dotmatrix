@@ -5,6 +5,7 @@
 - Listeners are called on every change (status, hello, state, settings).
 """
 import asyncio
+import calendar
 import json
 import logging
 import time
@@ -16,6 +17,16 @@ from .items import DEFAULT_ANIMATIONS, DEFAULT_EFFECTS, DEFAULT_OVERLAYS, DEFAUL
 
 PROTO_VERSION = 1
 log = logging.getLogger("device")
+
+
+def display_time(reported: str | None, elapsed: float) -> time.struct_time:
+    """'2026-11-12 07:25:03' as the display reported it, moved on by `elapsed` seconds."""
+    try:
+        base = time.strptime(reported or "", "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return time.localtime()
+    # Calendar arithmetic only (no zone): treat the wall time as if it were UTC.
+    return time.gmtime(calendar.timegm(base) + int(elapsed))
 
 
 class DeviceError(Exception):
@@ -239,6 +250,12 @@ class Device:
         await self.request("set_settings", settings=settings)
 
     # The display reports these every few seconds; in between, count on locally.
+    def local_time(self) -> time.struct_time:
+        """The time on the display's clock, in its own time zone (which may not be the
+        phone's): its last reported time plus what has passed since. The phone's own
+        time when the display hasn't one."""
+        return display_time(self.state.get("time"), time.monotonic() - self.state_at)
+
     def stopwatch_ms(self) -> int:
         sw = self.state.get("stopwatch", {})
         ms = sw.get("ms", 0)

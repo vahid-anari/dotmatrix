@@ -136,7 +136,7 @@ class ClockTab:
 
     def tick(self):
         c = self.app.device.settings.get("clock", {})
-        t = time.localtime()
+        t = self.app.device.local_time()
         h24 = c.get("format_24h", True)
         h = t.tm_hour if h24 else (t.tm_hour % 12 or 12)
         hh = f"{h:02d}" if h24 else str(h)
