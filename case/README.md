@@ -1,8 +1,9 @@
 # Case
 
-A 3D-printed case for the display, made to stand upright on a shelf: a body that
-holds the two LED boards behind a window, the ESP32 and the two optional sensors,
-and a back cover. Both print without supports.
+A 3D-printed case for the display, made to stand on a shelf: a body that holds the
+two LED boards behind a window, the ESP32 and the two optional sensors, a back cover,
+and two clip-on feet that lean it back 15° so the LEDs face a little upward. All
+print without supports.
 
 ![Front](images/front.png)
 
@@ -26,6 +27,7 @@ together, with the boards, only for looking at.
 |---|---|---|
 | Body | `stl/case.stl` | front face down, **diagonally** |
 | Back cover | `stl/cover.stl` | outside down, diagonally |
+| Feet, print two | `stl/foot.stl` | on its side, as exported |
 
 Both are 310.6 × 38.4 mm (the body 25.7 deep, the cover 15.4). That's longer than a
 256 mm bed (Bambu A1, P1S, X1), but they fit when turned diagonally in the slicer. No
@@ -41,6 +43,13 @@ printer and your boards:
 | `stl/test_frame.stl` | the first 2 mm of the front: the window around the LED blocks |
 | `stl/test_end.stl`, `stl/test_cover.stl` | the right end: ESP32 frame, light sensor posts, USB opening |
 | `stl/test_end_l.stl`, `stl/test_cover_l.stl` | the left end: the BME280's drawer and vents |
+
+The feet are printed on their side so their lips are built within the layers. Push the
+case down into them, about 5 cm in from each end; small ribs inside the lips hold it,
+with no screws. For another angle, change `lean` at the top of
+[`dotmatrix_foot.scad`](dotmatrix_foot.scad) (10° works too).
+
+![In its feet](images/feet.png)
 
 ## You also need
 

@@ -28,7 +28,7 @@ use <partbin/dev-boards/esp32_c3_supermini/esp32_c3_supermini.scad>
 use <partbin/sensors/gy_bme280/gy_bme280.scad>
 use <partbin/sensors/gy302_bh1750/gy302_bh1750.scad>
 
-part = "all";       // case | cover | test_frame | test_end | test_cover | test_end_l | test_cover_l | all | open | section
+part = "all";       // case | cover | test_frame | test_end | test_cover | test_end_l | test_cover_l | all | open | section | on_feet
 one_piece = true;   // case and cover each printed whole
 
 // ------------------------------------------------- display (measured)
@@ -451,3 +451,11 @@ if (part == "test_cover_l") flip() intersection() { cover_whole(); test_box_l();
 if (part == "all") upright() whole();
 if (part == "open") upright() whole(true);
 if (part == "section") upright() intersection() { whole(); translate([xd - 8, -1, -1]) cube([40, esp_yc + 1, 60]); }
+
+// On the shelf in its two feet (dotmatrix_foot.scad), for the picture.
+foot_lean = 15;
+if (part == "on_feet") {
+    rotate([-foot_lean, 0, 0]) upright() whole();
+    for (s = [-1, 1]) translate([s * 100 - 10, 0, 0]) multmatrix([[0,0,1,0],[1,0,0,0],[0,1,0,0],[0,0,0,1]])
+        color([0.35, 0.36, 0.4]) import("stl/foot.stl");
+}
