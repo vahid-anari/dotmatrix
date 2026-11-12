@@ -50,7 +50,9 @@ class LabeledSlider(ft.Column):
         self.value_text = ft.Text(fmt(value), size=14, color=ft.Colors.ON_SURFACE_VARIANT)
         self.slider = ft.Slider(min=lo, max=hi, value=max(lo, min(hi, value)),
                                 divisions=max(1, round((hi - lo) / step)),
-                                on_change=self._changed, on_change_end=on_release, padding=0)
+                                on_change=self._changed, on_change_end=on_release,
+                                # room for the knob at both ends (at 0 it was cut in half)
+                                padding=ft.Padding.symmetric(horizontal=10, vertical=0))
         super().__init__([
             ft.Row([ft.Text(label, size=14), self.value_text], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             self.slider,

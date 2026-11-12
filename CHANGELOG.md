@@ -4,6 +4,10 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.8.1 — 2026-11-12
+
+- Slider knobs are whole at both ends (at 0 or the top they were cut in half).
+
 ## 0.8.0 — 2026-11-12
 
 - Automatic brightness, from the light sensor (Home → Brightness → Automatic): one
