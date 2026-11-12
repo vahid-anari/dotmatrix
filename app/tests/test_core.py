@@ -385,3 +385,21 @@ def test_sensor_rows():
     assert dict(sensor_rows({"temp": 20.0}, "f")) == {"Temperature": "68.0 °F"}
     assert sensor_rows({"lux": 230}) == [("Light", "230 lx")]
     assert sensor_rows({}) == []
+
+
+def test_location():
+    from core.timezones import posix_tz
+    from core.weather import parse_places
+    from ui.place import location_changes
+    assert posix_tz("America/Toronto") == "EST5EDT,M3.2.0,M11.1.0"
+    assert posix_tz("Asia/Tehran") == "<+0330>-3:30"
+    assert posix_tz("Nowhere/Place") is None and posix_tz("../x") is None and posix_tz("") is None
+    p = parse_places({"results": [{"name": "Hamilton", "admin1": "Ontario", "country": "Canada",
+                                   "country_code": "CA", "timezone": "America/Toronto",
+                                   "latitude": 43.25011, "longitude": -79.84963}]})[0]
+    assert (p.cc, p.tz) == ("CA", "America/Toronto")
+    assert location_changes(p) == {"weather": {"place": "Hamilton, Ontario", "lat": 43.2501, "lon": -79.8496,
+                                               "country": "CA"},
+                                   "timezone": "EST5EDT,M3.2.0,M11.1.0"}
+    p.tz = "Nowhere/Place"
+    assert "timezone" not in location_changes(p)

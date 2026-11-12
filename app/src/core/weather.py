@@ -22,6 +22,8 @@ class Place:
     country: str
     lat: float
     lon: float
+    cc: str = ""   # country code, e.g. "CA"
+    tz: str = ""   # IANA time zone, e.g. "America/Toronto"
 
     @property
     def label(self) -> str:
@@ -37,7 +39,8 @@ class Place:
 
 def parse_places(data: dict) -> list[Place]:
     return [Place(r.get("name", ""), r.get("admin1", ""), r.get("country", ""),
-                  round(float(r["latitude"]), 4), round(float(r["longitude"]), 4))
+                  round(float(r["latitude"]), 4), round(float(r["longitude"]), 4),
+                  (r.get("country_code") or "").upper()[:2], r.get("timezone") or "")
             for r in data.get("results") or [] if "latitude" in r and "longitude" in r]
 
 

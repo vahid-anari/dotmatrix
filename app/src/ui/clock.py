@@ -15,8 +15,9 @@ DATE_FORMATS = ["%a %b %d", "%a %d %b", "%d/%m/%Y", "%m/%d/%Y", "%Y-%m-%d", "%A"
 
 
 class ClockTab:
-    def __init__(self, app):
+    def __init__(self, app, open_settings=None):
         self.app = app
+        self.open_settings = open_settings
         self._touched = 0.0
         self._send_brightness = Debouncer(app.page, 0.3, self._night_brightness)
 
@@ -47,13 +48,14 @@ class ClockTab:
                                on_select=lambda e: self._clock(date_format=e.control.value))
         self.w_place = ft.Text("", size=15)
         self.w_now = muted("", 14)
-        self.w_choose = ft.OutlinedButton("Choose the place", icon=ft.Icons.PLACE, on_click=self._choose_place)
+        self.w_choose = ft.TextButton("Change the location in Settings", icon=ft.Icons.PLACE,
+                                      on_click=lambda e: self.open_settings and self.open_settings())
         self.w_units = ft.SegmentedButton(
             segments=[ft.Segment(value="c", label="°C"), ft.Segment(value="f", label="°F")],
             selected=["c"], show_selected_icon=False,
             on_change=lambda e: self._weather(units=next(iter(e.control.selected), "c")))
         self.w_old = muted("Update the display's firmware (Settings → Updates) to show the weather.", 14)
-        self.w_rows = ft.Column([self.w_place, self.w_now, ft.Row([self.w_choose, self.w_units], wrap=True)],
+        self.w_rows = ft.Column([self.w_place, self.w_now, ft.Row([self.w_units]), self.w_choose],
                                 spacing=10)
         self.night = ft.Switch(label="Dim at night", on_change=lambda e: self._set_night(enabled=e.control.value))
         self.from_btn = ft.OutlinedButton("23:00", icon=ft.Icons.BEDTIME, on_click=lambda e: self._pick("from"))
@@ -95,7 +97,7 @@ class ClockTab:
         has_weather = not d.settings or "weather" in d.settings
         self.w_old.visible, self.w_rows.visible = not has_weather, has_weather
         w = d.settings.get("weather", {})
-        self.w_place.value = w.get("place") or "No place chosen yet."
+        self.w_place.value = f"For {w['place']}" if w.get("place") else "Choose the display's location first."
         now = weather.describe(d.state.get("weather"))
         self.w_now.value = f"Now: {now}" if now else ("Waiting for the first reading…" if w.get("place") else "")
         self.w_now.visible = bool(self.w_now.value)
@@ -166,50 +168,6 @@ class ClockTab:
     def _weather(self, **changes):
         self._touched = time.monotonic()
         self.app.run(self.app.device.update_settings, weather=changes)
-
-    def _choose_place(self, e):
-        """Search by name; tapping a result sends it to the display."""
-        query = ft.TextField(label="Town or city", autofocus=True, expand=True,
-                             value=(self.app.device.settings.get("weather", {}).get("place") or "").split(",")[0])
-        results = ft.Column(spacing=0, scroll=ft.ScrollMode.AUTO, height=300)
-        note = muted("")
-
-        def pick(place):
-            self.app.page.pop_dialog()
-            self.w_place.value = place.label
-            self.w_place.update()
-            self._weather(place=place.label, lat=place.lat, lon=place.lon)
-            # A new place counts as wanting to see it: switch it on if it was off.
-            x = extras_from(self.app.device.settings.get("clock", {}))
-            if not (x["show_weather"] and x["every"]):
-                self._extras(show_weather=True, every=x["every"] or 30)
-
-        async def find(ev=None):
-            name = (query.value or "").strip()
-            if len(name) < 2:
-                return
-            note.value = "Searching…"
-            results.controls = []
-            note.update()
-            results.update()
-            try:
-                places = await weather.search(name)
-            except Exception:  # noqa: BLE001 — offline
-                note.value = "Couldn't search. Check the phone's internet connection."
-                note.update()
-                return
-            note.value = "" if places else "Nothing found. Try another spelling."
-            results.controls = [ft.ListTile(title=ft.Text(p.name), subtitle=ft.Text(p.full),
-                                            on_click=lambda ev, p=p: pick(p)) for p in places]
-            note.update()
-            results.update()
-
-        query.on_submit = find
-        self.app.page.show_dialog(ft.AlertDialog(
-            title=ft.Text("Weather for"),
-            content=ft.Column([ft.Row([query, ft.IconButton(ft.Icons.SEARCH, on_click=find)]), note, results],
-                              tight=True, width=360),
-            actions=[ft.TextButton("Cancel", on_click=lambda ev: self.app.page.pop_dialog())]))
 
     def _set_night(self, **changes):
         self._touched = time.monotonic()

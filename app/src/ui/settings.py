@@ -8,6 +8,7 @@ from core.device import PROTO_VERSION
 
 from . import theme
 from .app import APP_VERSION
+from .place import choose_place, location_changes
 from .widgets import bottom_room, muted, section
 
 # POSIX TZ strings: the ESP32 has no time zone database, so it needs these.
@@ -27,6 +28,11 @@ TIMEZONES = [
 ]
 
 
+def tz_label(tz: str) -> str:
+    """A friendly name for a POSIX TZ string the display reports, when it's a common one."""
+    return dict(TIMEZONES).get(tz, tz)
+
+
 class SettingsTab:
     def __init__(self, app):
         self.app = app
@@ -42,9 +48,9 @@ class SettingsTab:
 
         self.hostname = ft.TextField(label="Name on the network", expand=True, dense=True, suffix=".local")
         self.host_btn = ft.OutlinedButton("Save", on_click=self._save_hostname)
-        self.tz = ft.Dropdown(label="Time zone", expand=True,
-                              options=[ft.DropdownOption(key=k, text=t) for k, t in TIMEZONES],
-                              on_select=self._tz_changed)
+        self.loc_place = ft.Text("", size=15)
+        self.loc_tz = muted("", 14)
+        self.loc_btn = ft.OutlinedButton("Choose the location", icon=ft.Icons.PLACE, on_click=self._choose_location)
         self.wifi_btn = ft.OutlinedButton("Move to another Wi-Fi network", icon=ft.Icons.WIFI, on_click=self._wifi)
         self.reboot_btn = ft.OutlinedButton("Restart the display", icon=ft.Icons.RESTART_ALT, on_click=self._reboot)
         self.about = ft.Column(spacing=6)
@@ -73,8 +79,9 @@ class SettingsTab:
             section("Connection", self.status, ft.Row([self.address, self.connect_btn]),
                     self.find_btn, self.progress, self.found_list,
                     note="The phone and the display must be on the same Wi-Fi."),
-            section("Display", ft.Row([self.hostname, self.host_btn]), ft.Row([self.tz]),
-                    self.wifi_btn, self.reboot_btn),
+            section("Location", self.loc_place, self.loc_tz, self.loc_btn,
+                    note="Sets the display's time zone and where its weather comes from."),
+            section("Display", ft.Row([self.hostname, self.host_btn]), self.wifi_btn, self.reboot_btn),
             section("Your texts",
                     ft.Row([ft.OutlinedButton("Export", icon=ft.Icons.UPLOAD_FILE, on_click=self._export),
                             ft.OutlinedButton("Import", icon=ft.Icons.FILE_OPEN, on_click=self._import)], wrap=True),
@@ -105,15 +112,16 @@ class SettingsTab:
         if not self.address.value and d.host:
             self.address.value = d.host
         self.find_btn.disabled = self.app.scanning
-        for c in (self.hostname, self.host_btn, self.tz, self.wifi_btn, self.reboot_btn):
+        for c in (self.hostname, self.host_btn, self.loc_btn, self.wifi_btn, self.reboot_btn):
             c.disabled = not on
         s = d.settings
         if on and not self.hostname.value:
             self.hostname.value = s.get("hostname", "dotmatrix")
+        place = s.get("weather", {}).get("place")
+        self.loc_place.value = place or ("Not chosen yet." if on else "")
         tz = s.get("timezone")
-        if tz and tz not in {k for k, _ in TIMEZONES} and not any(o.key == tz for o in self.tz.options):
-            self.tz.options.append(ft.DropdownOption(key=tz, text=tz))
-        self.tz.value = tz
+        self.loc_tz.value = f"Time zone: {tz_label(tz)}" if tz else ""
+        self.loc_tz.visible = bool(tz)
         rows = [("App", APP_VERSION), ("Firmware", d.hello.get("fw", "–")),
                 ("Protocol", f"{PROTO_VERSION}" + (" (display differs)" if d.proto_mismatch else "")),
                 ("By", "Vahid Anari"), ("Licence", "MIT"), ("Weather", "Open-Meteo")]
@@ -204,8 +212,15 @@ class SettingsTab:
         name = (self.hostname.value or "").strip().lower()
         self.app.run(self.app.device.update_settings, hostname=name, ok=f"Now reachable as {name}.local")
 
-    def _tz_changed(self, e):
-        self.app.run(self.app.device.update_settings, timezone=e.control.value, ok="Time zone changed")
+    def _choose_location(self, e):
+        def picked(place):
+            changes = location_changes(place)
+            ok = f"Location: {place.label}" if "timezone" in changes else \
+                f"Location: {place.label} (time zone unchanged: not found)"
+            self.loc_place.value = place.label
+            self.loc_place.update()
+            self.app.run(self.app.device.update_settings, ok=ok, **changes)
+        choose_place(self.app, picked)
 
     def _wifi(self, e):
         ssid = ft.TextField(label="Network name", autofocus=True)

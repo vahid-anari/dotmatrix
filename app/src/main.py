@@ -38,7 +38,7 @@ async def main(page: ft.Page):
     if os.getenv("DM_HOST"):
         app.library.prefs["host"] = os.getenv("DM_HOST")
 
-    tabs: list = [HomeTab(app, open_settings=lambda: select(SETTINGS)), TextsTab(app), ClockTab(app),
+    tabs: list = [HomeTab(app, open_settings=lambda: select(SETTINGS)), TextsTab(app), ClockTab(app, open_settings=lambda: select(SETTINGS)),
                   ToolsTab(app), SettingsTab(app)]
     current = {"tab": 0, "asked_exit": None}  # the tab showing; when Back last said "again to exit"
 

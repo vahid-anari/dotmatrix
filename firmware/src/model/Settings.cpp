@@ -101,6 +101,11 @@ bool settingsUpdate(Settings& s, JsonObjectConst o, const char*& err) {
       if (v < -180 || v > 180) return err = "weather.lon must be -180..180", false;
       n.weather.lon = lroundf(v * 10000);
     }
+    if (w["country"].is<const char*>()) {
+      const char* c = w["country"];
+      if (strlen(c) != 0 && strlen(c) != 2) return err = "weather.country must be a 2-letter code", false;
+      strlcpy(n.weather.country, c, sizeof(n.weather.country));
+    }
     if (w["units"].is<const char*>()) {
       const char* u = w["units"];
       if (strcmp(u, "c") && strcmp(u, "f")) return err = "weather.units must be c or f", false;
@@ -155,6 +160,7 @@ void settingsToJson(const Settings& s, JsonObject o) {
   w["place"] = s.weather.place;
   w["lat"] = s.weather.lat / 10000.0;
   w["lon"] = s.weather.lon / 10000.0;
+  w["country"] = s.weather.country;  // since 0.7
   w["units"] = s.weather.fahrenheit ? "f" : "c";
   JsonObject n = o["night"].to<JsonObject>();
   n["enabled"] = s.night.enabled;

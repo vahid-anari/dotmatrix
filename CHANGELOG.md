@@ -4,6 +4,16 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.7.0 — 2026-11-12
+
+- One location for the display, chosen by name in Settings → Location: it sets both
+  the time zone (any place in the world, with its daylight saving) and where the
+  weather comes from. The list of time zones and the place search in Clock are gone.
+- In Canada the weather comes from the Canadian weather service's own model (GEM),
+  closer to the local forecast.
+- When it's raining or snowing now but the sky's code says only clouds, the display
+  says Rain or Snow.
+
 ## 0.6.0 — 2026-11-10
 
 Sensors, both optional (wiring in docs/HARDWARE.md):

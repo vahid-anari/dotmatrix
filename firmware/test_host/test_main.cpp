@@ -169,6 +169,14 @@ static void testSettings() {
   CHECK(settingsUpdate(back3, out.as<JsonObjectConst>(), err));
   CHECK(back3.clock.extrasEvery == 20 && !back3.clock.showDate && back3.clock.showWeather &&
         !back3.clock.extrasDrop && back3.clock.extrasPause == 4500);
+  // 0.7: the weather place's country, saved and read back; checked.
+  deserializeJson(doc, R"({"weather":{"country":"CA"}})");
+  CHECK(settingsUpdate(back3, doc.as<JsonObjectConst>(), err) && strcmp(back3.weather.country, "CA") == 0);
+  deserializeJson(doc, R"({"weather":{"country":"CAN"}})");
+  CHECK(!settingsUpdate(back3, doc.as<JsonObjectConst>(), err));
+  out.clear();
+  settingsToJson(back3, out.to<JsonObject>());
+  CHECK(strcmp(out["weather"]["country"] | "", "CA") == 0);
   // 0.6: the room's temperature, on by default, saved and read back.
   CHECK(back3.clock.showIndoor);
   deserializeJson(doc, R"({"clock":{"show_indoor":false}})");

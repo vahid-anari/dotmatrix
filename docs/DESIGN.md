@@ -220,7 +220,7 @@ Stopwatch and timer commands switch the display to that mode (not remembered acr
 
 The device sends `state` when it changes, plus once every 5 s. The `hello` lists let the app build its effect, animation, overlay and sprite pickers from what the firmware supports; firmware without `overlays` hides the overlay picker.
 
-**Weather.** With a place set, the display asks Open-Meteo (`http://api.open-meteo.com/v1/forecast`, free, no account) for the current temperature and WMO weather code every 15 minutes, or every 2 minutes after a failure, in a background task so a slow answer never stalls the display. Plain HTTP saves the TLS handshake; the data is public. Every `extras_every` seconds the clock makes way for the date and then the weather (each if switched on), as "8°C Rain" (° is character 0xB0 of the font; the display uses one short word, so even "-12°C Cloudy" fits on 64 columns). Drop style: the time slides up and away, each one drops in from the top, stays `extras_pause` ms and goes back up, then the time slides back up from below. Scroll style: each scrolls across from the right. A text too wide for the display always scrolls across. Firmware before 0.5 had `date_every` and `weather_every`; both are still accepted (a non-zero one switches that item on and sets the shared interval) and still reported, for older apps. A reading older than 2 hours isn't shown. The app finds the place with Open-Meteo's place search, from the phone.
+**Weather.** With a place set, the display asks Open-Meteo (`http://api.open-meteo.com/v1/forecast`, free, no account) for the current temperature, WMO weather code and precipitation every 15 minutes (for a place in Canada, `country` "CA", from the Canadian GEM model, `models=gem_seamless`; elsewhere Open-Meteo's best match), or every 2 minutes after a failure, in a background task so a slow answer never stalls the display. Plain HTTP saves the TLS handshake; the data is public. Every `extras_every` seconds the clock makes way for the date and then the weather (each if switched on), as "8°C Rain" (° is character 0xB0 of the font; the display uses one short word, so even "-12°C Cloudy" fits on 64 columns). Drop style: the time slides up and away, each one drops in from the top, stays `extras_pause` ms and goes back up, then the time slides back up from below. Scroll style: each scrolls across from the right. A text too wide for the display always scrolls across. Firmware before 0.5 had `date_every` and `weather_every`; both are still accepted (a non-zero one switches that item on and sets the shared interval) and still reported, for older apps. When the code says only clouds but the model has precipitation (0.1 mm or more) in the current quarter hour, the display says Rain (Snow at 0.5 °C and below). A reading older than 2 hours isn't shown. The app finds the place with Open-Meteo's place search, from the phone. Since 0.7.0 that place is the display's *location*: choosing it in Settings sends the weather's place, its country, and the time zone, turned from the place's IANA name (`America/Toronto`) into the POSIX rule the display needs with the `tzdata` package (each zone's file ends with that rule).
 
 HTTP on port 80: `/` setup page, `/api/status`, `/api/scan`, `POST /api/wifi` (form: `ssid`, `password`), `POST /update` (firmware `.bin`), `/log.csv` (since 0.6.0: the sensor readings of the last two days, one row a minute: time, lux, temp_c, humidity, pressure_hpa, outdoor_c, brightness, mode; kept in RAM and saved to `/sensorlog.bin` every ten minutes). The setup network is `DotMatrix-XXXX` with password `dotmatrix`.
 
@@ -265,7 +265,7 @@ Effect IDs are snake_case (`no_effect`, `print`, `scroll_up`, ... `sprite_pacman
             "extras_style": "drop",             // drop | scroll
             "extras_pause": 3000,               // ms each stays (drop)
             "date_every": 30, "weather_every": 30},  // the same, as firmware before 0.5 had it
-  "weather": {"place": "Burlington, Ontario", "lat": 43.3862, "lon": -79.8371, "units": "c"},  // since 0.4.0
+  "weather": {"place": "Burlington, Ontario", "lat": 43.3862, "lon": -79.8371, "country": "CA", "units": "c"},  // since 0.4.0; country since 0.7.0
   "night": {"enabled": true, "from": "23:00", "to": "07:00", "brightness": 1},
   "timezone": "EST5EDT,M3.2.0,M11.1.0"
 }
@@ -288,7 +288,7 @@ Screens (bottom navigation bar):
 2. **Texts**: groups → items → editor. Drag to reorder, duplicate, "play this group" (sends `set_playlist`). The editor uses `preview` so changes show live on the matrix.
 3. **Clock**: 12/24 h, seconds, date interval and format, night dimming.
 4. **Tools**: stopwatch and countdown timer (presets and a custom length), both running on the device.
-5. **Settings**: device address (found automatically, or typed), name, time zone, Wi-Fi, library export/import, and updates for the app and the display's firmware.
+5. **Settings**: device address (found automatically, or typed), location (time zone and the weather's place), name, Wi-Fi, library export/import, and updates for the app and the display's firmware.
 
 Storage on the phone: one JSON file in `FLET_APP_STORAGE_DATA`. The Demo group (one item per effect) is built in.
 

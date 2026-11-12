@@ -38,7 +38,8 @@ class Weather {
   bool _lastOk = false;
   uint32_t _lastTry = 0;
   uint32_t _generation = 0;  // bumped by invalidate(), so a late answer is dropped
-  char _url[200] = "";
+  char _url[220] = "";
+  bool _fahrenheit = false;  // the units of the request in _url
   uint32_t _urlGeneration = 0;
 
   static void task(void* self);

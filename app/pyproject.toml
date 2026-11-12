@@ -1,6 +1,6 @@
 [project]
 name = "dotmatrix"
-version = "0.6.0"
+version = "0.7.0"
 description = "Control app for the Dot Matrix LED display"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -9,6 +9,7 @@ dependencies = [
   "flet==1.0.4",
   "websockets>=13,<18",
   "certifi",
+  "tzdata",
 ]
 
 [dependency-groups]

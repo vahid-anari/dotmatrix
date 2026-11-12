@@ -29,6 +29,7 @@ struct Settings {
     char place[40] = "";  // empty = no place chosen
     int32_t lat = 0;      // 1/10000 degree
     int32_t lon = 0;
+    char country[3] = ""; // ISO code, e.g. "CA": picks the weather model (since 0.7)
     bool fahrenheit = false;
   } weather;
 

@@ -67,10 +67,11 @@ brightness and sends a quick message; with the sensors fitted it also shows the 
 temperature, humidity, air pressure and light, and downloads the last two days of
 readings, one a minute, as a CSV file. Clock sets 12- or 24-hour time; whether the
 date, the weather and the room's temperature come by, one after the other, how often,
-and whether they drop in from the top or scroll across; the place for the weather; and
-the hours of night dimming. Tools runs the stopwatch and the timer on the display: they keep going
+and whether they drop in from the top or scroll across; °C or °F; and the hours of
+night dimming. Tools runs the stopwatch and the timer on the display: they keep going
 when the phone is put away, and the timer takes over the display and blinks when it
-reaches zero. Settings has the connection, the display's name and time zone, the
+reaches zero. Settings has the connection; the display's location, chosen once by
+name, which sets both its time zone and where the weather comes from; its name; the
 app's look (light, dark or as the phone is set, and the LED colour of your display),
 export and import of your texts, and updates.
 

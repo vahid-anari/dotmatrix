@@ -539,7 +539,8 @@ void App::handleMessage(uint32_t client, const char* data, size_t len) {
     if (strcmp(before.timezone, settings.timezone) != 0) network.applyTimezone(settings.timezone);
     if (strcmp(before.hostname, settings.hostname) != 0) network.applyHostname(settings.hostname);
     if (strcmp(before.weather.place, settings.weather.place) || before.weather.lat != settings.weather.lat ||
-        before.weather.lon != settings.weather.lon || before.weather.fahrenheit != settings.weather.fahrenheit)
+        before.weather.lon != settings.weather.lon || before.weather.fahrenheit != settings.weather.fahrenheit ||
+        strcmp(before.weather.country, settings.weather.country))
       weather.invalidate();
     _appliedBase = 255;  // re-apply brightness now
     markDirty(true, false);

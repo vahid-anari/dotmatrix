@@ -22,11 +22,16 @@ void Weather::loop(const Settings& s, bool online, uint32_t now) {
   _lastTry = now;
 
   // Plain HTTP: the weather is public, and it saves the TLS handshake's
-  // memory and time. Open-Meteo answers on both.
+  // memory and time. Open-Meteo answers on both. In Canada, the Canadian
+  // weather service's own model (GEM, down to 2.5 km) is closer to what the
+  // local forecasts say than the global blend.
+  bool canada = strcasecmp(s.weather.country, "CA") == 0;
   snprintf(_url, sizeof(_url),
            "http://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
-           "&current=temperature_2m,weather_code&temperature_unit=%s",
-           s.weather.lat / 10000.0, s.weather.lon / 10000.0, s.weather.fahrenheit ? "fahrenheit" : "celsius");
+           "&current=temperature_2m,weather_code,precipitation&temperature_unit=%s%s",
+           s.weather.lat / 10000.0, s.weather.lon / 10000.0, s.weather.fahrenheit ? "fahrenheit" : "celsius",
+           canada ? "&models=gem_seamless" : "");
+  _fahrenheit = s.weather.fahrenheit;
   _urlGeneration = _generation;
   _busy = true;
   if (xTaskCreate(task, "weather", 6144, this, 1, nullptr) != pdPASS) _busy = false;
@@ -49,6 +54,7 @@ void Weather::fetch() {
       JsonDocument filter;
       filter["current"]["temperature_2m"] = true;
       filter["current"]["weather_code"] = true;
+      filter["current"]["precipitation"] = true;
       JsonDocument doc;
       DeserializationError e = deserializeJson(doc, http.getString(), DeserializationOption::Filter(filter));
       JsonVariantConst cur = doc["current"];
@@ -57,6 +63,14 @@ void Weather::fetch() {
         n.valid = true;
         n.temp10 = (int16_t)lroundf(cur["temperature_2m"].as<float>() * 10);
         n.code = (uint8_t)cur["weather_code"].as<int>();
+        // The code describes the sky over the last hour; if it's raining or
+        // snowing in this quarter hour while the code says only clouds, say so.
+        float precip = cur["precipitation"] | 0.0f;
+        if (precip >= 0.1f && n.code < 51) {
+          float c = cur["temperature_2m"].as<float>();
+          if (_fahrenheit) c = (c - 32) * 5 / 9;
+          n.code = c <= 0.5f ? 71 : 61;
+        }
         n.at = millis();
         portENTER_CRITICAL(&_lock);
         if (_urlGeneration == _generation) _now = n;  // still the same place and units

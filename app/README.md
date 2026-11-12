@@ -7,9 +7,9 @@ It talks to the display over Wi-Fi using the protocol in [`../docs/DESIGN.md`](.
 |---|---|
 | Home | What the display shows now, mode (texts, clock, off), brightness, a quick message, the room's readings from the sensors and a two-day CSV of them |
 | Texts | Groups of items (playlists). Play one to send it to the display. Edit items with a live preview on the display |
-| Clock | 12/24-hour, seconds; the date, the weather outside and the room's temperature now and then (how often, drop in or scroll, how long); date style; the place for the weather and °C/°F; dimming at night |
+| Clock | 12/24-hour, seconds; the date, the weather outside and the room's temperature now and then (how often, drop in or scroll, how long); date style; °C/°F; dimming at night |
 | Tools | Stopwatch and countdown timer, running on the display |
-| Settings | Find or enter the display's address, its name and time zone, Wi-Fi, the app's look and LED colour, export and import, updates for the app and the display |
+| Settings | Find or enter the display's address; its location (sets the time zone and the weather's place); its name; Wi-Fi, the app's look and LED colour, export and import, updates for the app and the display |
 
 ![The app](../docs/images/app.png)
 
