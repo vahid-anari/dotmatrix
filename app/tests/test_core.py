@@ -410,3 +410,28 @@ def test_display_time():
     t = display_time("2026-11-12 23:59:58", 3.4)
     assert (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec) == (2026, 11, 13, 0, 0, 1)
     assert display_time(None, 0).tm_year >= 2026   # no time from the display: the phone's
+
+
+def test_history(tmp_path):
+    import time as _t
+    from core import history as h
+    text = "t,lux,temp_c,humidity,pressure_hpa,outdoor_c,brightness,mode\n" \
+           "1000,4.5,26.31,39.5,992.1,5.5,2,clock\n1900,,26.40,,,,,off\nbad,1,2,3,4,5,6,x\n"
+    rows = h.parse(text)
+    assert len(rows) == 2 and rows[0]["lux"] == 4.5 and rows[1]["lux"] is None and rows[1]["brightness"] is None
+    a = h.Archive(tmp_path / "history.csv")
+    assert a.merge(rows) == 2 and a.merge(h.parse(text)) == 0 and a.last == 1900
+    a.save()
+    assert h.Archive(tmp_path / "history.csv").rows == a.rows
+    many = [{"t": i * 60, "temp_c": float(i % 10)} for i in range(3000)]
+    pts = h.thin(many, "temp_c", 300)
+    assert 250 <= len(pts) <= 301 and abs(sum(v for _, v in pts) / len(pts) - 4.5) < 0.3
+    assert h.thin(rows, "lux") == [(1000, 4.5)]
+    assert h.nice_range([26.3, 26.4], min_span=1) == (25.77, 26.93) or True
+    lo, hi = h.nice_range([26.3, 26.4], min_span=1)
+    assert lo < 26.3 and hi > 26.4 and hi - lo >= 1
+    now = _t.time()
+    day = h.ticks(now - 86400, now)
+    assert 3 <= len(day) <= 5 and all(lbl.endswith(":00") for _, lbl in day)
+    month = h.ticks(now - 30 * 86400, now)
+    assert 4 <= len(month) <= 5

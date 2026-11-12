@@ -57,6 +57,7 @@ settings = {
     "clock": {"format_24h": True, "seconds": True, "date_every": 0, "date_format": "%a %b %d",
               "weather_every": 0, "extras_every": 60, "show_date": True, "show_weather": True,
               "extras_style": "drop", "extras_pause": 3000, "show_indoor": True},
+    "auto_brightness": {"enabled": False, "dark": 0, "bright": 2},
     "weather": {"place": "Toronto, Ontario, Canada", "lat": 43.65, "lon": -79.38, "units": "c"},
     "night": {"enabled": False, "from": "23:00", "to": "07:00", "brightness": 1},
 }
@@ -137,17 +138,44 @@ def state_msg():
                   "running": timer["clock"].running, "done": timer["done"]},
         **fake_weather(),
         "sensors": {"lux": 85, "temp": 22.4, "humidity": 41, "pressure": 1003.2},
+        "auto_brightness": settings["auto_brightness"]["enabled"],
     }
 
 
+def fake_rows(res: int, since: int, human: bool) -> str:
+    """Made-up sensor readings in the device's CSV format: 30 days of quarter hours,
+    or two days of minutes; a day's warmth and light, the lamp in the evening."""
+    import math
+    step = 900 if res == 15 else 60
+    end = int(time.time()) // step * step
+    start = end - (30 * 86400 if res == 15 else 2 * 86400)
+    rows = ["time" if human else "t"]
+    rows[0] += ",lux,temp_c,humidity,pressure_hpa,outdoor_c,brightness,mode"
+    for t in range(start, end, step):
+        if t <= since:
+            continue
+        lt = time.localtime(t)
+        h = lt.tm_hour + lt.tm_min / 60
+        day = max(0.0, math.sin((h - 7) / 11 * math.pi)) if 7 <= h <= 18 else 0.0
+        lux = 44.3 if 17 <= h < 22 else round(15 * day, 2)
+        temp = 26.3 + 0.3 * math.sin(t / 3600 * 2 * math.pi)
+        hum = 39 + 3 * math.sin(t / 86400 * 2 * math.pi) + 2 * math.sin(t / 400000)
+        pres = 992 + 6 * math.sin(t / 300000)
+        out = 6 + 5 * day + 2 * math.sin(t / 500000)
+        bright = 0 if lux < 0.5 else (1 if lux < 20 else 2)
+        stamp = time.strftime("%Y-%m-%d %H:%M", lt) if human else str(t)
+        rows.append(f"{stamp},{lux},{temp:.2f},{hum:.1f},{pres:.1f},{out:.1f},{bright},clock")
+    return "\n".join(rows) + "\n"
+
+
 async def log_handler(request):
-    """A short made-up sensor log, in the device's format."""
-    rows = ["time,lux,temp_c,humidity,pressure_hpa,outdoor_c,brightness,mode"]
-    now = int(time.time()) // 60 * 60
-    for i in range(120, 0, -1):
-        t = time.strftime("%Y-%m-%d %H:%M", time.localtime(now - i * 60))
-        rows.append(f"{t},{85 + i % 7},{22.4 + (i % 10) / 100:.2f},41.0,1003.2,8.4,{settings['brightness']},text")
-    return web.Response(text="\n".join(rows) + "\n", content_type="text/csv")
+    return web.Response(text=fake_rows(1, 0, True), content_type="text/csv")
+
+
+async def api_log_handler(request):
+    res = 15 if request.query.get("res") == "15" else 1
+    since = int(request.query.get("since", "0") or 0)
+    return web.Response(text=fake_rows(res, since, False), content_type="text/csv")
 
 
 def fake_weather():
@@ -407,7 +435,7 @@ async def main():
 
     app = web.Application(client_max_size=4 * 2**20)
     app.add_routes([web.get("/ws", ws_handler), web.get("/api/status", status_handler),
-                    web.get("/log.csv", log_handler),
+                    web.get("/log.csv", log_handler), web.get("/api/log", api_log_handler),
                     web.post("/update", update_handler)])
     runner = web.AppRunner(app)
     await runner.setup()

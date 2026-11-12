@@ -169,6 +169,13 @@ static void testSettings() {
   CHECK(settingsUpdate(back3, out.as<JsonObjectConst>(), err));
   CHECK(back3.clock.extrasEvery == 20 && !back3.clock.showDate && back3.clock.showWeather &&
         !back3.clock.extrasDrop && back3.clock.extrasPause == 4500);
+  // 0.8: automatic brightness, off by default, levels checked.
+  CHECK(!back3.autoBrightness.enabled && back3.autoBrightness.dark == 0 && back3.autoBrightness.bright == 2);
+  deserializeJson(doc, R"({"auto_brightness":{"enabled":true,"bright":5}})");
+  CHECK(settingsUpdate(back3, doc.as<JsonObjectConst>(), err) && back3.autoBrightness.enabled &&
+        back3.autoBrightness.bright == 5 && back3.autoBrightness.dark == 0);
+  deserializeJson(doc, R"({"auto_brightness":{"dark":16}})");
+  CHECK(!settingsUpdate(back3, doc.as<JsonObjectConst>(), err));
   // 0.7: the weather place's country, saved and read back; checked.
   deserializeJson(doc, R"({"weather":{"country":"CA"}})");
   CHECK(settingsUpdate(back3, doc.as<JsonObjectConst>(), err) && strcmp(back3.weather.country, "CA") == 0);

@@ -63,9 +63,11 @@ plays over it meanwhile, its alignment and brightness, or an animation that runs
 a set time. The editor's LED strip plays the item over and over the way the display
 will, and with "Show on the display while editing" the display plays it too. Home
 shows what the display is doing, switches between texts, clock and off, sets the
-brightness and sends a quick message; with the sensors fitted it also shows the room's
-temperature, humidity, air pressure and light, and downloads the last two days of
-readings, one a minute, as a CSV file. Clock sets 12- or 24-hour time; whether the
+brightness, or lets the light sensor set it (between a level for a dark room and one
+for the lights on), and sends a quick message; with the sensors fitted it also shows
+the room's temperature, humidity, air pressure and light, with charts of them and of
+the brightness over a day, a week, a month or everything the phone has kept, and the
+last two days of readings, one a minute, as a CSV file. Clock sets 12- or 24-hour time; whether the
 date, the weather and the room's temperature come by, one after the other, how often,
 and whether they drop in from the top or scroll across; °C or °F; and the hours of
 night dimming. Tools runs the stopwatch and the timer on the display: they keep going
@@ -102,8 +104,7 @@ the protocol between app and display, and the roadmap. GitHub Actions builds the
 firmware and the APK on every push; a push that raises the version in
 `app/pyproject.toml` (and `APP_VERSION`) publishes them as a release, which the app
 then offers as an update; [`CHANGELOG.md`](CHANGELOG.md) lists what each version
-changed. Planned next: automatic brightness from the light sensor, and
-signed firmware updates.
+changed. Planned next: signed firmware updates.
 
 ## Support
 

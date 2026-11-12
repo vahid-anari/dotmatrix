@@ -4,6 +4,18 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.8.0 — 2026-11-12
+
+- Automatic brightness, from the light sensor (Home → Brightness → Automatic): one
+  level for a dark room and one for the lights on, set by two sliders, and in between
+  by daylight. It changes slowly, so a passing shadow does nothing. While it's on,
+  the level slider only shows what the display chose; night dimming still applies.
+- History (Home → In the room → History): charts of the room's temperature (with the
+  weather outside), humidity, air pressure, light and the display's brightness, over
+  a day, a week, a month or everything. Touch a chart to read it. The display keeps
+  30 days of quarter-hour averages besides its two days of minutes; the phone keeps
+  every quarter hour it has fetched, with no end.
+
 ## 0.7.1 — 2026-11-12
 
 - The clock drawn in the app shows the display's time, in the display's time zone,

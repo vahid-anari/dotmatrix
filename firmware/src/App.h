@@ -63,6 +63,10 @@ class App {
   uint8_t _appliedBase = 255;
   uint32_t _rebootAt = 0;
   time_t _lastLogRow = 0;
+  float _luxSmooth = -1;      // the light, smoothed over a few seconds (-1 = none yet)
+  uint8_t _autoLevel = 255;   // the brightness automatic brightness has reached
+  uint8_t _autoWant = 255;    // where it is heading, and since when it wanted that
+  uint32_t _autoWantSince = 0, _autoLastStep = 0, _autoLastSample = 0;
   bool _stateChanged = false;
   const char* _resetReason = "";
   bool _otaPendingVerify = false;
@@ -75,6 +79,8 @@ class App {
   void markDirty(bool settings, bool playlist);
   void saveIfDue(uint32_t now);
   void checkBrightness(uint32_t now);
+  void updateAutoBrightness(uint32_t now);
+  bool autoActive() const;  // automatic brightness is on and the light sensor answers
   void updateLed();
   void logSensors();
 

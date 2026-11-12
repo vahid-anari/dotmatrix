@@ -102,6 +102,14 @@ class HomeTab:
         self.brightness = LabeledSlider("Level", 6, 0, 15, 1, lambda v: f"{int(v)} of 15",
                                         self._brightness_changed, self._brightness_released)
         self.night_note = muted("")
+        # Automatic brightness (firmware 0.8, with a light sensor): the level
+        # slider is then only a gauge, and these two set the ends of the range.
+        self.auto = ft.Switch(label="Automatic, from the room's light", on_change=self._auto_changed)
+        self.auto_dark = LabeledSlider("In the dark", 0, 0, 15, 1, lambda v: f"{int(v)} of 15",
+                                       lambda v: self._auto_level(dark=int(v)), self._brightness_released)
+        self.auto_bright = LabeledSlider("With the lights on", 2, 0, 15, 1, lambda v: f"{int(v)} of 15",
+                                         lambda v: self._auto_level(bright=int(v)), self._brightness_released)
+        self.auto_rows = ft.Column([self.auto_dark, self.auto_bright], spacing=10)
         self.message = ft.TextField(hint_text="Type a message", expand=True, dense=True,
                                     max_length=128, counter="", on_submit=self._show_message)
         self.message_btn = ft.FilledButton("Show", icon=ft.Icons.PLAY_ARROW, on_click=self._show_message)
@@ -110,9 +118,10 @@ class HomeTab:
         self.launcher = ft.UrlLauncher()
         self.log_btn = ft.TextButton("Download the last two days (CSV)", icon=ft.Icons.DOWNLOAD,
                                      on_click=self._download_log)
-        self.room_section = section("In the room", self.room, self.log_btn,
-                                    note="From the display's sensors. It keeps a reading a minute "
-                                         "for two days.")
+        self.history_btn = ft.FilledTonalButton("History", icon=ft.Icons.SHOW_CHART, on_click=self._history)
+        self.room_section = section("In the room", self.room, ft.Row([self.history_btn, self.log_btn], wrap=True),
+                                    note="From the display's sensors. It keeps a reading a minute for two "
+                                         "days, and quarter-hour averages for 30.")
 
         self.view = ft.Column([
             self.update_note,
@@ -120,7 +129,7 @@ class HomeTab:
             self.now_caption,
             ft.Container(height=4),
             section("Show", self.modes),
-            section("Brightness", self.brightness, self.night_note),
+            section("Brightness", self.auto, self.brightness, self.auto_rows, self.night_note),
             section("Quick message", ft.Row([self.message, self.message_btn],
                                             vertical_alignment=ft.CrossAxisAlignment.START),
                     note="Scrolls across the display until you stop it."),
@@ -140,15 +149,28 @@ class HomeTab:
             self.update_note.content.controls[1].value = (
                 f"Version {app.latest.version} is available for the {' and the '.join(what)}. Tap to update.")
         on = d.connected
-        for c in (self.modes, self.brightness.slider, self.message, self.message_btn):
+        ab = d.settings.get("auto_brightness")
+        has_light = "lux" in st.get("sensors", {})
+        auto_on = bool(ab and ab.get("enabled"))
+        self.auto.visible = ab is not None and (has_light or auto_on)
+        self.auto.value = auto_on
+        self.auto_rows.visible = self.auto.visible and auto_on
+        for c in (self.modes, self.message, self.message_btn, self.auto,
+                  self.auto_dark.slider, self.auto_bright.slider):
             c.disabled = not on
+        self.brightness.slider.disabled = not on or auto_on
 
         mode = st.get("mode", "text")
         self.modes.selected = [mode] if mode in MODE_LABELS else []
         self.now_image.src, self.now_caption.value = self._now(mode, st)
 
         if time.monotonic() - self._brightness_touched > 2:
-            self.brightness.set(d.settings.get("brightness", st.get("brightness", 6)))
+            # With automatic brightness the slider shows what the display chose.
+            self.brightness.set(st.get("brightness", 6) if auto_on else
+                                d.settings.get("brightness", st.get("brightness", 6)))
+            if ab:
+                self.auto_dark.set(ab.get("dark", 0))
+                self.auto_bright.set(ab.get("bright", 2))
         night = on and bool(st.get("night"))
         self.night_note.value = "Dimmed for the night right now." if night else ""
         self.night_note.visible = night
@@ -171,6 +193,7 @@ class HomeTab:
 
         sensors = st.get("sensors") if on else None
         self.room_section.visible = bool(sensors)
+        self.history_btn.visible = "auto_brightness" in d.settings  # firmware 0.8 keeps the history
         if sensors:
             units = d.settings.get("weather", {}).get("units", "c")
             self.room.controls = [
@@ -238,8 +261,24 @@ class HomeTab:
         self._brightness_touched = time.monotonic()
         self.app.device.send("set_settings", settings={"brightness": int(v)})
 
+    def _auto_changed(self, e):
+        self._brightness_touched = time.monotonic()
+        on = bool(e.control.value)
+        self.auto_rows.visible = on
+        self.brightness.slider.disabled = on
+        self.view.update()
+        self.app.device.send("set_settings", settings={"auto_brightness": {"enabled": on}})
+
+    def _auto_level(self, **level):
+        self._brightness_touched = time.monotonic()
+        self.app.device.send("set_settings", settings={"auto_brightness": level})
+
     def _brightness_released(self, e):
         self._brightness_touched = time.monotonic()
+
+    def _history(self, e):
+        from .history import HistoryScreen
+        HistoryScreen(self.app).show()
 
     async def _download_log(self, e):
         """The phone's own browser fetches the file straight from the display."""

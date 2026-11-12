@@ -220,12 +220,21 @@ void WebServer::begin() {
     r->send(200, "application/json", s);
   });
   server.on("/api/scan", HTTP_GET, handleScan);
-  // The last two days of sensor readings, one row a minute (see SensorLog).
+  // The sensor readings (see SensorLog): /log.csv is the last two days a
+  // minute, for people; /api/log?res=15&since=<unix time> is for the app.
   server.on("/log.csv", HTTP_GET, [](AsyncWebServerRequest* r) {
+    auto cur = SensorLog::csv(false, true, 0);
     AsyncWebServerResponse* res = r->beginChunkedResponse(
-        "text/csv", [](uint8_t* buf, size_t max, size_t index) { return SensorLog::csvChunk(buf, max, index); });
+        "text/csv", [cur](uint8_t* buf, size_t max, size_t) { return cur->next(buf, max); });
     res->addHeader("Content-Disposition", "attachment; filename=\"dotmatrix-log.csv\"");
     r->send(res);
+  });
+  server.on("/api/log", HTTP_GET, [](AsyncWebServerRequest* r) {
+    bool quarters = r->hasParam("res") && r->getParam("res")->value() == "15";
+    uint32_t since = r->hasParam("since") ? strtoul(r->getParam("since")->value().c_str(), nullptr, 10) : 0;
+    auto cur = SensorLog::csv(quarters, false, since);
+    r->send(r->beginChunkedResponse("text/csv",
+                                    [cur](uint8_t* buf, size_t max, size_t) { return cur->next(buf, max); }));
   });
   server.on("/api/wifi", HTTP_POST, handleWifi);
   server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);

@@ -261,14 +261,52 @@ bool App::nightActive() const {
   return from <= to ? (m >= from && m < to) : (m >= from || m < to);  // may wrap midnight
 }
 
+bool App::autoActive() const {
+  return settings.autoBrightness.enabled && sensors.lightValid() && _autoLevel != 255;
+}
+
+// Automatic brightness. The light goes through a few seconds' smoothing; the
+// level it calls for (on a log scale between `dark` at 0 lx and `bright` at
+// 40 lx or more, the room lamp behind the case's small window) must hold for
+// 3 s, and the display then moves to it a step a second, so a passing shadow
+// or a hand changes nothing.
+void App::updateAutoBrightness(uint32_t now) {
+  if (!settings.autoBrightness.enabled || !sensors.lightValid()) {
+    _autoLevel = 255;
+    _luxSmooth = -1;
+    return;
+  }
+  if (now - _autoLastSample < 1000) return;
+  _autoLastSample = now;
+  float lux = sensors.lux();
+  _luxSmooth = _luxSmooth < 0 ? lux : _luxSmooth + 0.25f * (lux - _luxSmooth);
+  const auto& a = settings.autoBrightness;
+  float f = constrain(log10f(1 + _luxSmooth) / log10f(1 + 40.0f), 0.0f, 1.0f);
+  uint8_t want = (uint8_t)lroundf(a.dark + f * ((int)a.bright - (int)a.dark));
+  if (_autoLevel == 255) {  // just switched on: go there at once
+    _autoLevel = _autoWant = want;
+    return;
+  }
+  if (want != _autoWant) {
+    _autoWant = want;
+    _autoWantSince = now;
+  }
+  if (_autoLevel != _autoWant && now - _autoWantSince >= 3000 && now - _autoLastStep >= 1000) {
+    _autoLevel += _autoWant > _autoLevel ? 1 : -1;
+    _autoLastStep = now;
+  }
+}
+
 uint8_t App::brightnessFor(int8_t itemBrightness) const {
-  uint8_t b = itemBrightness >= 0 ? itemBrightness : settings.brightness;
+  uint8_t b = itemBrightness >= 0 ? itemBrightness : autoActive() ? _autoLevel : settings.brightness;
   if (nightActive()) b = min<uint8_t>(b, settings.night.brightness);
   return b;
 }
 
 void App::checkBrightness(uint32_t now) {
-  if (now - _lastBrightnessCheck < 15000 && _appliedBase != 255) return;
+  updateAutoBrightness(now);
+  // Every second with automatic brightness, else every 15 s (night starting).
+  if (now - _lastBrightnessCheck < (autoActive() ? 1000UL : 15000UL) && _appliedBase != 255) return;
   _lastBrightnessCheck = now;
   uint8_t base = brightnessFor(-1);
   if (base != _appliedBase) {
@@ -378,6 +416,7 @@ void App::fillState(JsonDocument& doc) {
   else
     doc["time"] = nullptr;
   doc["brightness"] = display.brightness();
+  doc["auto_brightness"] = autoActive();  // since 0.8: the brightness follows the light now
   doc["night"] = nightActive();
   doc["wifi"] = network.online() ? "online" : (network.setupActive() ? "setup" : "connecting");
   doc["ip"] = network.ip();

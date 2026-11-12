@@ -113,6 +113,16 @@ bool settingsUpdate(Settings& s, JsonObjectConst o, const char*& err) {
     }
   }
 
+  JsonObjectConst ab = o["auto_brightness"];
+  if (!ab.isNull()) {
+    if (ab["enabled"].is<bool>()) n.autoBrightness.enabled = ab["enabled"];
+    for (const char* k : {"dark", "bright"}) {
+      if (!jsonIsNumber(ab[k])) continue;
+      int b = jsonNum(ab[k], 0);
+      if (b < 0 || b > 15) return err = "auto_brightness levels must be 0-15", false;
+      (strcmp(k, "dark") == 0 ? n.autoBrightness.dark : n.autoBrightness.bright) = b;
+    }
+  }
   JsonObjectConst nt = o["night"];
   if (!nt.isNull()) {
     if (nt["enabled"].is<bool>()) n.night.enabled = nt["enabled"];
@@ -162,6 +172,10 @@ void settingsToJson(const Settings& s, JsonObject o) {
   w["lon"] = s.weather.lon / 10000.0;
   w["country"] = s.weather.country;  // since 0.7
   w["units"] = s.weather.fahrenheit ? "f" : "c";
+  JsonObject ab = o["auto_brightness"].to<JsonObject>();  // since 0.8
+  ab["enabled"] = s.autoBrightness.enabled;
+  ab["dark"] = s.autoBrightness.dark;
+  ab["bright"] = s.autoBrightness.bright;
   JsonObject n = o["night"].to<JsonObject>();
   n["enabled"] = s.night.enabled;
   formatHHMM(s.night.from, buf, sizeof(buf));

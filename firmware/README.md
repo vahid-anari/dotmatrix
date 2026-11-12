@@ -33,7 +33,7 @@ Local builds report version `X.Y.Z-dev` (`FW_VERSION` in `src/config.h`); releas
 | CS | GPIO 7 |
 | CLK | GPIO 4 (SCK) |
 
-Optional sensors on I²C: SDA to GPIO 1, SCL to GPIO 0, VCC to 3.3 V, for a BH1750 light sensor and a BME280 (or BMP280). The firmware finds them by itself; details in [`../docs/HARDWARE.md`](../docs/HARDWARE.md). Their readings of the last two days, one a minute, are at `http://dotmatrix.local/log.csv`.
+Optional sensors on I²C: SDA to GPIO 1, SCL to GPIO 0, VCC to 3.3 V, for a BH1750 light sensor and a BME280 (or BMP280). The firmware finds them by itself; details in [`../docs/HARDWARE.md`](../docs/HARDWARE.md). Their readings of the last two days, one a minute, are at `http://dotmatrix.local/log.csv`; the display also keeps 30 days of quarter-hour averages, which the app fetches for its charts (`/api/log`). With the light sensor, the brightness can follow the room's light.
 
 ## First start
 

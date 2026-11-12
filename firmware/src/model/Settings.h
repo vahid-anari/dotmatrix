@@ -33,6 +33,14 @@ struct Settings {
     bool fahrenheit = false;
   } weather;
 
+  // Brightness from the room's light (with a light sensor): `dark` in a dark
+  // room, `bright` with the lights on, in between by daylight (since 0.8).
+  struct AutoBrightness {
+    bool enabled = false;
+    uint8_t dark = 0;
+    uint8_t bright = 2;
+  } autoBrightness;
+
   struct Night {
     bool enabled = false;
     uint16_t from = 23 * 60;  // minutes after midnight

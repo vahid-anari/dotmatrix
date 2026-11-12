@@ -5,7 +5,7 @@ It talks to the display over Wi-Fi using the protocol in [`../docs/DESIGN.md`](.
 
 | Screen | What it does |
 |---|---|
-| Home | What the display shows now, mode (texts, clock, off), brightness, a quick message, the room's readings from the sensors and a two-day CSV of them |
+| Home | What the display shows now, mode (texts, clock, off), brightness (by hand, or automatic from the light sensor), a quick message, the room's readings from the sensors, their history in charts (kept on the phone with no end) and a two-day CSV |
 | Texts | Groups of items (playlists). Play one to send it to the display. Edit items with a live preview on the display |
 | Clock | 12/24-hour, seconds; the date, the weather outside and the room's temperature now and then (how often, drop in or scroll, how long); date style; °C/°F; dimming at night |
 | Tools | Stopwatch and countdown timer, running on the display |

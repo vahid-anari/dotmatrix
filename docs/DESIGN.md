@@ -207,7 +207,7 @@ Transport: WebSocket at `ws://dotmatrix.local/ws`, text frames, one JSON object 
 {"evt": "ack", "id": 3, "ok": false, "error": "item 4: unknown animation"}
 {"evt": "playlist", "id": 3, "name": "Home", "items": [ITEM, ...]}
 {"evt": "state", "mode": "clock", "playlist": "Home", "items": 12, "index": 3, "previewing": false,
- "time": "2026-10-21 14:05:09", "brightness": 6, "night": false, "wifi": "online",
+ "time": "2026-10-21 14:05:09", "brightness": 6, "auto_brightness": false, "night": false, "wifi": "online",
  "ip": "192.168.1.50", "rssi": -58, "uptime": 123456, "free_heap": 182000,
  "min_free_heap": 170000, "last_reset": "power_on",
  "stopwatch": {"ms": 83120, "running": true},
@@ -222,7 +222,7 @@ The device sends `state` when it changes, plus once every 5 s. The `hello` lists
 
 **Weather.** With a place set, the display asks Open-Meteo (`http://api.open-meteo.com/v1/forecast`, free, no account) for the current temperature, WMO weather code and precipitation every 15 minutes (for a place in Canada, `country` "CA", from the Canadian GEM model, `models=gem_seamless`; elsewhere Open-Meteo's best match), or every 2 minutes after a failure, in a background task so a slow answer never stalls the display. Plain HTTP saves the TLS handshake; the data is public. Every `extras_every` seconds the clock makes way for the date and then the weather (each if switched on), as "8°C Rain" (° is character 0xB0 of the font; the display uses one short word, so even "-12°C Cloudy" fits on 64 columns). Drop style: the time slides up and away, each one drops in from the top, stays `extras_pause` ms and goes back up, then the time slides back up from below. Scroll style: each scrolls across from the right. A text too wide for the display always scrolls across. Firmware before 0.5 had `date_every` and `weather_every`; both are still accepted (a non-zero one switches that item on and sets the shared interval) and still reported, for older apps. When the code says only clouds but the model has precipitation (0.1 mm or more) in the current quarter hour, the display says Rain (Snow at 0.5 °C and below). A reading older than 2 hours isn't shown. The app finds the place with Open-Meteo's place search, from the phone. Since 0.7.0 that place is the display's *location*: choosing it in Settings sends the weather's place, its country, and the time zone, turned from the place's IANA name (`America/Toronto`) into the POSIX rule the display needs with the `tzdata` package (each zone's file ends with that rule).
 
-HTTP on port 80: `/` setup page, `/api/status`, `/api/scan`, `POST /api/wifi` (form: `ssid`, `password`), `POST /update` (firmware `.bin`), `/log.csv` (since 0.6.0: the sensor readings of the last two days, one row a minute: time, lux, temp_c, humidity, pressure_hpa, outdoor_c, brightness, mode; kept in RAM and saved to `/sensorlog.bin` every ten minutes). The setup network is `DotMatrix-XXXX` with password `dotmatrix`.
+HTTP on port 80: `/` setup page, `/api/status`, `/api/scan`, `POST /api/wifi` (form: `ssid`, `password`), `POST /update` (firmware `.bin`), `/log.csv` (since 0.6.0: the sensor readings of the last two days, one row a minute: time, lux, temp_c, humidity, pressure_hpa, outdoor_c, brightness, mode; kept in RAM and saved to `/sensorlog.bin` every ten minutes), `/api/log?res=1|15&since=<unix time>` (since 0.8.0: the same in Unix time `t`, either the minutes or the 30 days of quarter-hour averages kept in `/sensorlog15.bin`, only rows after `since`; the app keeps the quarters it fetches with no end, for its History charts). The setup network is `DotMatrix-XXXX` with password `dotmatrix`.
 
 **ITEM** — `type` is `text` (default) or `animation`
 
@@ -266,6 +266,7 @@ Effect IDs are snake_case (`no_effect`, `print`, `scroll_up`, ... `sprite_pacman
             "extras_pause": 3000,               // ms each stays (drop)
             "date_every": 30, "weather_every": 30},  // the same, as firmware before 0.5 had it
   "weather": {"place": "Burlington, Ontario", "lat": 43.3862, "lon": -79.8371, "country": "CA", "units": "c"},  // since 0.4.0; country since 0.7.0
+  "auto_brightness": {"enabled": false, "dark": 0, "bright": 2},  // since 0.8.0
   "night": {"enabled": true, "from": "23:00", "to": "07:00", "brightness": 1},
   "timezone": "EST5EDT,M3.2.0,M11.1.0"
 }
@@ -319,7 +320,7 @@ Local builds report `X.Y.Z-dev`, which sorts just below release `X.Y.Z`.
 | **M2: App core** | Device client, Home, Texts (+ live preview, animation items), Clock, Settings, fake device |
 | **M3: Extras** | Stopwatch and timer on the device, OTA from the app, app update check, CI releases (night dimming already came with M1) |
 | **M4: Effects** | Remaining animations (`starfield`, `life`, `fireworks`, `equalizer`, `snake`, `sprite_run`), overlays (`wave`, `sparkle`, `pulse`, `border`), laser effects (`laser_write`, `laser_scan`, `laser_cut`, `laser_beam`). Animated preview in the app editor (§7) |
-| **M5: Weather and sensors** | Outside weather from Open-Meteo in the clock (done, 0.4.0); BH1750 light and BME280 sensors, the room in the clock and on Home, a two-day log as `/log.csv` (done, 0.6.0); automatic brightness from the light sensor next, designed from that log |
+| **M5: Weather and sensors** | Outside weather from Open-Meteo in the clock (done, 0.4.0); BH1750 light and BME280 sensors, the room in the clock and on Home, a two-day log as `/log.csv` (done, 0.6.0); automatic brightness and History charts (done, 0.8.0): the light, smoothed over a few seconds, sets the level on a log scale from `dark` at 0 lx to `bright` at 40 lx and more (the lamp, through the case's small window), after holding 3 s, a step a second; night dimming still caps it |
 
 ## 10. Open questions
 
