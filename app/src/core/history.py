@@ -164,15 +164,15 @@ def parse_events(text: str) -> list[dict]:
     for r in csv.DictReader(io.StringIO(text)):
         try:
             out.append({"t": int(r["t"]), "kind": r["kind"], "reason": int(r["reason"] or 0),
-                        "seconds": int(r["seconds"] or 0)})
+                        "seconds": int(r["seconds"] or 0), "rssi": int(r.get("rssi") or 0)})
         except (KeyError, TypeError, ValueError):
             continue
     return out
 
 
 def events_csv(events: list[dict]) -> str:
-    return "t,kind,reason,seconds\n" + "".join(
-        f"{e['t']},{e['kind']},{e['reason']},{e['seconds']}\n" for e in events)
+    return "t,kind,reason,seconds,rssi\n" + "".join(
+        f"{e['t']},{e['kind']},{e['reason']},{e['seconds']},{e.get('rssi', 0)}\n" for e in events)
 
 
 class EventArchive:
@@ -224,6 +224,8 @@ def describe(e: dict) -> tuple[str, bool]:
     """A line for an event (without its time), and whether it's out of the ordinary."""
     if e["kind"] == "wifi":
         why = WIFI_REASONS.get(e["reason"], f"reason {e['reason']}")
+        if e.get("rssi", 0) < 0:  # firmware 0.8.3: the signal just before
+            why += f" (signal was {e['rssi']} dBm)".replace("-", "−")
         return f"Wi-Fi lost for {duration(e['seconds'])} · {why}", False
     return f"Restarted · {RESTARTS.get(e['reason'], 'unknown reason')}", e["reason"] in UNUSUAL_RESTARTS
 

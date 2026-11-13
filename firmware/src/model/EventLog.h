@@ -17,7 +17,7 @@ enum Restart : uint8_t {
 void begin();                       // load the saved events; work out why we started
 void noteRestart(Restart why);      // call just before restarting
 Restart startReason();
-void add(uint32_t time, Kind kind, uint8_t reason, uint32_t seconds);
-String csv(uint32_t since);         // "t,kind,reason,seconds" rows after `since`
+void add(uint32_t time, Kind kind, uint8_t reason, uint32_t seconds, int8_t rssi = 0);
+String csv(uint32_t since);         // "t,kind,reason,seconds,rssi" rows after `since`
 
 }  // namespace EventLog

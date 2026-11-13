@@ -33,6 +33,7 @@ void Network::begin(const Settings& settings) {
   _haveCredentials = Storage::loadWifi(_ssid, _pass);
   if (_haveCredentials) {
     WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);  // no modem power save: dozing, it missed the router's beacons and dropped
     WiFi.setTxPower((wifi_power_t)WIFI_TX_POWER);
     WiFi.begin(_ssid.c_str(), _pass.c_str());
     _state = State::Connecting;
@@ -58,6 +59,7 @@ void Network::startAP() {
     WiFi.disconnect(false);
   }
   WiFi.mode(_haveCredentials ? WIFI_AP_STA : WIFI_AP);
+  WiFi.setSleep(false);
   WiFi.setTxPower((wifi_power_t)WIFI_TX_POWER);
   WiFi.softAP(_apName, SETUP_AP_PASSWORD);
   dns.start(53, "*", WiFi.softAPIP());  // captive portal: every name → us
@@ -124,11 +126,18 @@ void Network::loop() {
         if (_lostAt) {  // back after losing it: log how long it was gone
           uint32_t secs = (now - _lostAt) / 1000;
           time_t t = time(nullptr);
-          if (t > 1700000000) EventLog::add(t - secs, EventLog::WIFI_LOST, _lostReason, secs);
+          if (t > 1700000000) EventLog::add(t - secs, EventLog::WIFI_LOST, _lostReason, secs, _lostRssi);
           _lostAt = 0;
         }
         if (_onOnline) _onOnline();
-      } else if (now - _connectStart >= WIFI_CONNECT_TIMEOUT_MS) {
+      } else if (_lostAt && now - _connectStart < WIFI_RECONNECT_MS) {
+        // Lost while running: keep at it for a few minutes before the setup
+        // network (which made a few seconds' drop last 81 s: 20 s, then a try a minute).
+        if (now - _lastRetry >= 15000) {
+          _lastRetry = now;
+          WiFi.reconnect();
+        }
+      } else if (now - _connectStart >= (_lostAt ? WIFI_RECONNECT_MS : WIFI_CONNECT_TIMEOUT_MS)) {
         LOG("wifi: could not join, opening setup AP");
         startAP();
         _lastRetry = now;
@@ -136,12 +145,18 @@ void Network::loop() {
       break;
 
     case State::Online:
+      if (now - _lastRssiAt >= 5000) {  // the signal just before a drop goes in the event
+        _lastRssiAt = now;
+        _lastRssi = (int8_t)WiFi.RSSI();
+      }
       if (!connected) {
         // Auto-reconnect is on; fall back to setup only if it stays down.
         _state = State::Connecting;
         _connectStart = now;
         _lostAt = now ? now : 1;
         _lostReason = lastDisconnect;
+        _lostRssi = _lastRssi;
+        _lastRetry = now;
         LOG("wifi: connection lost (reason %u)", _lostReason);
       }
       break;

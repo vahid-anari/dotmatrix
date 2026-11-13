@@ -443,6 +443,7 @@ def test_events(tmp_path):
     assert len(ev) == 3
     assert h.describe(ev[0]) == ("Restarted · firmware update", False)
     assert h.describe(ev[1]) == ("Wi-Fi lost for 12 s · signal lost", False)
+    assert h.describe({**ev[1], "rssi": -78}) == ("Wi-Fi lost for 12 s · signal lost (signal was −78 dBm)", False)
     assert h.describe({"t": 1, "kind": "restart", "reason": 6, "seconds": 0})[1] is True
     assert h.duration(75) == "1 min 15 s" and h.duration(3720) == "1 h 2 min"
     assert h.summary(ev) == "The Wi-Fi dropped 2 times (1 min 27 s in all), the display restarted once."

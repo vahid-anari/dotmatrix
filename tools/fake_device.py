@@ -174,10 +174,10 @@ async def log_handler(request):
 
 async def api_events_handler(request):
     now = int(time.time())
-    rows = [(now - 50 * 3600, "restart", 2, 0), (now - 30 * 3600, "wifi", 200, 12),
-            (now - 9 * 3600, "wifi", 8, 75), (now - 3 * 3600, "restart", 3, 0)]
+    rows = [(now - 50 * 3600, "restart", 2, 0, 0), (now - 30 * 3600, "wifi", 200, 12, -71),
+            (now - 9 * 3600, "wifi", 8, 75, -64), (now - 3 * 3600, "restart", 3, 0, 0)]
     since = int(request.query.get("since", "0") or 0)
-    text = "t,kind,reason,seconds\n" + "".join(f"{t},{k},{r},{s}\n" for t, k, r, s in rows if t > since)
+    text = "t,kind,reason,seconds,rssi\n" + "".join(f"{t},{k},{r},{s},{q}\n" for t, k, r, s, q in rows if t > since)
     return web.Response(text=text, content_type="text/csv")
 
 

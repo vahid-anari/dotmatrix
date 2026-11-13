@@ -40,6 +40,8 @@ class Network {
   uint32_t _lastRetry = 0;
   uint32_t _lostAt = 0;       // millis() when the Wi-Fi was lost (0 = not lost)
   uint8_t _lostReason = 0;
+  int8_t _lostRssi = 0, _lastRssi = 0;  // dBm
+  uint32_t _lastRssiAt = 0;
   bool _haveCredentials = false;
   String _ssid, _pass;
   void (*_onOnline)() = nullptr;

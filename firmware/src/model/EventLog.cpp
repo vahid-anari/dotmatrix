@@ -13,9 +13,10 @@ struct __attribute__((packed)) Event {
   uint8_t kind;
   uint8_t reason;    // Restart, or the Wi-Fi's own disconnect reason code
   uint16_t seconds;  // how long the Wi-Fi was gone (capped)
+  int8_t rssi;       // the signal just before it was lost, dBm (0 = not known)
 };
 
-constexpr const char* PATH = "/events.bin";
+constexpr const char* PATH = "/events2.bin";  // 0.8.2 kept 8-byte events in /events.bin
 constexpr size_t MAX = 100;
 constexpr uint32_t NOTE_MAGIC = 0x52535431;  // "RST1"
 
@@ -36,6 +37,7 @@ void save() {
 }  // namespace
 
 void begin() {
+  LittleFS.remove("/events.bin");
   File f = LittleFS.open(PATH, "r");
   if (f) {
     count = min<size_t>(f.size() / sizeof(Event), MAX);
@@ -61,24 +63,24 @@ void noteRestart(Restart why) { restartNote = (NOTE_MAGIC & ~0xFFu) | why; }
 
 Restart startReason() { return started; }
 
-void add(uint32_t time, Kind kind, uint8_t reason, uint32_t seconds) {
+void add(uint32_t time, Kind kind, uint8_t reason, uint32_t seconds, int8_t rssi) {
   if (count == MAX) {
     memmove(events, events + 1, (MAX - 1) * sizeof(Event));
     count--;
   }
-  events[count++] = {time, kind, reason, (uint16_t)min<uint32_t>(seconds, 0xFFFF)};
+  events[count++] = {time, kind, reason, (uint16_t)min<uint32_t>(seconds, 0xFFFF), rssi};
   save();
 }
 
 String csv(uint32_t since) {
-  String s = "t,kind,reason,seconds\n";
+  String s = "t,kind,reason,seconds,rssi\n";
   s.reserve(24 + count * 28);
   char line[48];
   for (size_t i = 0; i < count; i++) {
     const Event& e = events[i];
     if (e.time <= since) continue;
-    snprintf(line, sizeof(line), "%lu,%s,%u,%u\n", (unsigned long)e.time, e.kind == WIFI_LOST ? "wifi" : "restart",
-             e.reason, e.seconds);
+    snprintf(line, sizeof(line), "%lu,%s,%u,%u,%d\n", (unsigned long)e.time, e.kind == WIFI_LOST ? "wifi" : "restart",
+             e.reason, e.seconds, e.rssi);
     s += line;
   }
   return s;

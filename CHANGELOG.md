@@ -4,6 +4,14 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.8.3 — 2026-11-13
+
+- Steadier Wi-Fi: the display no longer lets its radio doze between the router's
+  signals (the dozing made it miss them and drop, ten times in half an hour).
+- After a drop, the display keeps trying for three minutes before it opens its
+  setup network; a few seconds' drop used to last 81 s.
+- Events show how strong the signal was just before each drop.
+
 ## 0.8.2 — 2026-11-13
 
 - History has Events: each time the Wi-Fi was lost (for how long, and why, in plain
