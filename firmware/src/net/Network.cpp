@@ -8,7 +8,11 @@
 #include <esp_sntp.h>
 #include <esp_task_wdt.h>
 
+#include "../model/EventLog.h"
 #include "../storage/Storage.h"
+
+// The reason the Wi-Fi gave for the last disconnect (from its event task).
+static volatile uint8_t lastDisconnect = 0;
 
 static DNSServer dns;
 
@@ -20,6 +24,8 @@ void Network::begin(const Settings& settings) {
   esp_read_mac(mac, ESP_MAC_WIFI_STA);  // works before Wi-Fi is started
   snprintf(_apName, sizeof(_apName), SETUP_AP_PREFIX "%02X%02X", mac[4], mac[5]);
 
+  WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) { lastDisconnect = info.wifi_sta_disconnected.reason; },
+               ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   WiFi.persistent(false);  // we keep credentials ourselves (NVS "wifi")
   WiFi.setAutoReconnect(true);
   WiFi.setHostname(_hostname);
@@ -96,6 +102,7 @@ void Network::startServices() {
   // handle() blocks the loop for the whole upload; keep the watchdog fed.
   ArduinoOTA.onStart([]() { LOG("ota: network upload started"); });
   ArduinoOTA.onProgress([](unsigned int, unsigned int) { esp_task_wdt_reset(); });
+  ArduinoOTA.onEnd([]() { EventLog::noteRestart(EventLog::UPDATE); });
   ArduinoOTA.onError([](ota_error_t e) { LOG("ota: error %d", (int)e); });
   ArduinoOTA.begin();
 }
@@ -114,6 +121,12 @@ void Network::loop() {
         LOG("wifi: online, %s (%s.local), rssi %d", WiFi.localIP().toString().c_str(), _hostname,
             WiFi.RSSI());
         startServices();
+        if (_lostAt) {  // back after losing it: log how long it was gone
+          uint32_t secs = (now - _lostAt) / 1000;
+          time_t t = time(nullptr);
+          if (t > 1700000000) EventLog::add(t - secs, EventLog::WIFI_LOST, _lostReason, secs);
+          _lostAt = 0;
+        }
         if (_onOnline) _onOnline();
       } else if (now - _connectStart >= WIFI_CONNECT_TIMEOUT_MS) {
         LOG("wifi: could not join, opening setup AP");
@@ -127,7 +140,9 @@ void Network::loop() {
         // Auto-reconnect is on; fall back to setup only if it stays down.
         _state = State::Connecting;
         _connectStart = now;
-        LOG("wifi: connection lost");
+        _lostAt = now ? now : 1;
+        _lostReason = lastDisconnect;
+        LOG("wifi: connection lost (reason %u)", _lostReason);
       }
       break;
 

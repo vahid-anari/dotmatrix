@@ -9,6 +9,7 @@
 #include "display/Overlay.h"
 #include "display/Sprites.h"
 #include "display/Effects.h"
+#include "model/EventLog.h"
 #include "model/JsonUtil.h"
 #include "net/WebServer.h"
 #include "storage/Storage.h"
@@ -59,6 +60,7 @@ void App::begin() {
   display.setBrightness(settings.brightness);
   sensors.begin();
   SensorLog::begin();
+  EventLog::begin();
 
   network.onOnline(&App::onOnline);
   network.begin(settings);
@@ -82,10 +84,15 @@ void App::begin() {
 }
 
 void App::onOnline() {
-  // Show where to find the device, once per connection.
-  char msg[64];
-  snprintf(msg, sizeof(msg), "%s.local  %s", app.settings.hostname, WiFi.localIP().toString().c_str());
-  app.showNotice(msg, true);
+  // Show where to find the device, once after it starts (not again after the
+  // Wi-Fi comes back: the address hasn't changed, and the app finds it anyway).
+  static bool shown = false;
+  if (!shown) {
+    shown = true;
+    char msg[64];
+    snprintf(msg, sizeof(msg), "%s.local  %s", app.settings.hostname, WiFi.localIP().toString().c_str());
+    app.showNotice(msg, true);
+  }
   app._stateChanged = true;
 }
 
@@ -157,8 +164,17 @@ void App::loop() {
     WebServer::cleanup();
   }
 
-  if (WebServer::rebootRequested() && !_rebootAt) _rebootAt = now + 800;
+  if (WebServer::rebootRequested() && !_rebootAt) {
+    _rebootAt = now + 800;
+    _rebootWhy = WebServer::rebootForUpdate() ? EventLog::UPDATE : EventLog::NEW_WIFI;
+  }
+  // The restart is logged once the clock is set (it isn't, just after starting).
+  if (!_restartLogged && timeValid()) {
+    _restartLogged = true;
+    EventLog::add(time(nullptr) - millis() / 1000, EventLog::RESTART, EventLog::startReason(), 0);
+  }
   if (_rebootAt && (int32_t)(now - _rebootAt) >= 0) {
+    EventLog::noteRestart((EventLog::Restart)_rebootWhy);
     if (_settingsDirty) Storage::saveSettings(settings);
     if (_playlistDirty) Storage::savePlaylist(textMode.items, textMode.playlistName);
     LOG("rebooting");
@@ -594,10 +610,12 @@ void App::handleMessage(uint32_t client, const char* data, size_t len) {
     Storage::saveWifi(ssid, pass);
     ack(client, id, true);
     _rebootAt = millis() + 800;
+    _rebootWhy = EventLog::NEW_WIFI;
 
   } else if (strcmp(cmd, "reboot") == 0) {
     ack(client, id, true);
     _rebootAt = millis() + 500;
+    _rebootWhy = EventLog::FROM_APP;
 
   } else if (strcmp(cmd, "stopwatch") == 0) {
     handleStopwatch(client, id, doc["action"] | "");

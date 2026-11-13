@@ -62,6 +62,8 @@ class App {
   uint32_t _lastBrightnessCheck = 0;
   uint8_t _appliedBase = 255;
   uint32_t _rebootAt = 0;
+  uint8_t _rebootWhy = 5;       // EventLog::Restart, noted before restarting
+  bool _restartLogged = false;
   time_t _lastLogRow = 0;
   float _luxSmooth = -1;      // the light, smoothed over a few seconds (-1 = none yet)
   uint8_t _autoLevel = 255;   // the brightness automatic brightness has reached

@@ -21,14 +21,14 @@ class Chart(ft.Column):
     maps a value onto the drawn scale (light uses a log scale)."""
     HEIGHT = 120
 
-    def __init__(self, title: str, unit_fmt, ymap=lambda v: v, min_span: float = 1.0):
+    def __init__(self, title: str, unit_fmt, ymap=lambda v: v, min_span: float = 1.0, floor=None):
         readout = muted("", 13)
         canvas = cv.Canvas([], height=self.HEIGHT, expand=True, resize_interval=100)
         touch = ft.GestureDetector(content=canvas, drag_interval=30)
         super().__init__([ft.Row([ft.Text(title, size=15, weight=ft.FontWeight.W_600), readout],
                                  alignment=ft.MainAxisAlignment.SPACE_BETWEEN), touch], spacing=4)
         # (attributes after the control is set up: a flet control can't take them before)
-        self.fmt, self.ymap, self.min_span = unit_fmt, ymap, min_span
+        self.fmt, self.ymap, self.min_span, self.floor = unit_fmt, ymap, min_span, floor
         self.series: list[tuple[list, str, str]] = []  # (points, colour, name)
         self.span = (0.0, 1.0)
         self.cw = 0.0  # the canvas's width, once known
@@ -68,6 +68,8 @@ class Chart(ft.Column):
             return
         vals = [self.ymap(v) for pts, _, _ in self.series for _, v in pts]
         lo, hi = history.nice_range(vals, min_span=self.min_span)
+        if self.floor is not None:  # e.g. brightness can't go below 0
+            lo = max(lo, self.floor)
         y = lambda v: pad + (h - 2 * pad - 14) * (1 - (self.ymap(v) - lo) / ((hi - lo) or 1))
         grid = ft.Paint(color=ft.Colors.with_opacity(0.15, ft.Colors.ON_SURFACE), stroke_width=1)
         for t, label in history.ticks(*self.span):
@@ -131,6 +133,11 @@ class HistoryScreen:
     def __init__(self, app):
         self.app = app
         self.archive = history.Archive(_storage_dir() / "history.csv")
+        self.events = history.EventArchive(_storage_dir() / "events.csv")
+        self.ev_summary = ft.Text("", size=14)
+        self.ev_list = ft.Column(spacing=6)
+        self.ev_section = ft.Column([ft.Text("Events", size=15, weight=ft.FontWeight.W_600),
+                                     self.ev_summary, self.ev_list], spacing=8)
         self.minutes: list[dict] = []
         self.range = "day"
         self.status = muted("")
@@ -144,8 +151,10 @@ class HistoryScreen:
         self.temp_key = ft.Row([self._key(BLUE, "room"), self._key(ORANGE, "outside")], spacing=14)
         self.hum = Chart("Humidity", lambda v: f"{v:.0f} %")
         self.pres = Chart("Air pressure", lambda v: f"{v:.0f} hPa", min_span=4)
-        self.light = Chart("Light", lambda v: f"{v:.1f} lx" if v < 10 else f"{v:.0f} lx", ymap=history.light_y)
-        self.bright = Chart("Display brightness", lambda v: f"{v:.1f} of 15" if v % 1 else f"{v:.0f} of 15")
+        self.light = Chart("Light", lambda v: f"{v:.1f} lx" if v < 10 else f"{v:.0f} lx", ymap=history.light_y,
+                           floor=0)
+        self.bright = Chart("Display brightness", lambda v: f"{v:.1f} of 15" if v % 1 else f"{v:.0f} of 15",
+                            floor=0)
         self.view = ft.View(
             route="/history",
             appbar=ft.AppBar(title=ft.Text("History"), actions=[
@@ -153,6 +162,7 @@ class HistoryScreen:
             controls=[ft.Column([
                 self.picker, self.status,
                 ft.Column([self.temp, self.temp_key], spacing=2), self.hum, self.pres, self.light, self.bright,
+                self.ev_section,
                 muted("Touch a chart to read it. The display keeps 30 days; the phone keeps every "
                       "day it has fetched, from the first time you opened this page.", 12),
                 ft.Container(height=40),
@@ -187,6 +197,11 @@ class HistoryScreen:
         new = self.archive.merge(quarters)
         if new:
             await asyncio.to_thread(self.archive.save)
+        try:  # events: firmware 0.8.2 and later
+            if self.events.merge(await history.fetch_events(host, self.events.last)):
+                await asyncio.to_thread(self.events.save)
+        except Exception:  # noqa: BLE001
+            pass
         self.minutes = minutes
         self.status.value = ""
         self.status.visible = False
@@ -212,6 +227,18 @@ class HistoryScreen:
         self.pres.set([(history.thin(rows, "pressure_hpa"), PURPLE, "")], start, now)
         self.light.set([(history.thin(rows, "lux"), GOLD, "")], start, now)
         self.bright.set([(history.thin(rows, "brightness"), GREEN, "")], start, now)
+        evs = [e for e in self.events.events if start <= e["t"] <= now]
+        self.ev_summary.value = history.summary(evs)
+        lines = []
+        for e in reversed(evs[-50:]):
+            text, odd = history.describe(e)
+            icon = ft.Icons.WIFI_OFF if e["kind"] == "wifi" else ft.Icons.RESTART_ALT
+            colour = ORANGE if odd else ft.Colors.ON_SURFACE_VARIANT
+            lines.append(ft.Row([ft.Icon(icon, size=16, color=colour),
+                                 muted(time.strftime("%a %H:%M", time.localtime(e["t"])), 13),
+                                 ft.Text(text, size=13, color=ORANGE if odd else None, expand=True)],
+                                spacing=8, vertical_alignment=ft.CrossAxisAlignment.START))
+        self.ev_list.controls = lines
         try:
             self.view.update()
         except Exception:  # noqa: BLE001 — not on the page yet

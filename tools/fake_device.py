@@ -172,6 +172,15 @@ async def log_handler(request):
     return web.Response(text=fake_rows(1, 0, True), content_type="text/csv")
 
 
+async def api_events_handler(request):
+    now = int(time.time())
+    rows = [(now - 50 * 3600, "restart", 2, 0), (now - 30 * 3600, "wifi", 200, 12),
+            (now - 9 * 3600, "wifi", 8, 75), (now - 3 * 3600, "restart", 3, 0)]
+    since = int(request.query.get("since", "0") or 0)
+    text = "t,kind,reason,seconds\n" + "".join(f"{t},{k},{r},{s}\n" for t, k, r, s in rows if t > since)
+    return web.Response(text=text, content_type="text/csv")
+
+
 async def api_log_handler(request):
     res = 15 if request.query.get("res") == "15" else 1
     since = int(request.query.get("since", "0") or 0)
@@ -436,6 +445,7 @@ async def main():
     app = web.Application(client_max_size=4 * 2**20)
     app.add_routes([web.get("/ws", ws_handler), web.get("/api/status", status_handler),
                     web.get("/log.csv", log_handler), web.get("/api/log", api_log_handler),
+                    web.get("/api/events", api_events_handler),
                     web.post("/update", update_handler)])
     runner = web.AppRunner(app)
     await runner.setup()

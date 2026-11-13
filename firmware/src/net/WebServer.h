@@ -35,5 +35,6 @@ size_t clientCount();
 void setStatus(const String& json);
 // Set when a firmware upload or Wi-Fi change needs a reboot.
 bool rebootRequested();
+bool rebootForUpdate();  // the restart asked for is for new firmware
 bool otaInProgress();
 }  // namespace WebServer

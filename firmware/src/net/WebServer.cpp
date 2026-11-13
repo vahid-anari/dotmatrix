@@ -1,5 +1,6 @@
 #include "WebServer.h"
 
+#include "../model/EventLog.h"
 #include "../sensors/SensorLog.h"
 
 #include <AsyncTCP.h>
@@ -18,6 +19,7 @@ static AsyncWebSocket ws("/ws");
 static QueueHandle_t events;
 
 static volatile bool rebootFlag = false;
+static volatile bool rebootUpdate = false;  // the restart is for new firmware
 static volatile bool otaFlag = false;
 static String status = "{}";
 static SemaphoreHandle_t statusLock;
@@ -195,8 +197,10 @@ static void handleUpdateDone(AsyncWebServerRequest* r) {
   // Success only if a file actually arrived and verified.
   bool ok = otaBytes > 0 && Update.isFinished() && !Update.hasError();
   r->send(ok ? 200 : 500, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false}");
-  if (ok)
+  if (ok) {
+    rebootUpdate = true;
     rebootFlag = true;
+  }
   else
     otaAbort("no valid file");
   otaFlag = false;
@@ -228,6 +232,10 @@ void WebServer::begin() {
         "text/csv", [cur](uint8_t* buf, size_t max, size_t) { return cur->next(buf, max); });
     res->addHeader("Content-Disposition", "attachment; filename=\"dotmatrix-log.csv\"");
     r->send(res);
+  });
+  server.on("/api/events", HTTP_GET, [](AsyncWebServerRequest* r) {
+    uint32_t since = r->hasParam("since") ? strtoul(r->getParam("since")->value().c_str(), nullptr, 10) : 0;
+    r->send(200, "text/csv", EventLog::csv(since));
   });
   server.on("/api/log", HTTP_GET, [](AsyncWebServerRequest* r) {
     bool quarters = r->hasParam("res") && r->getParam("res")->value() == "15";
@@ -287,4 +295,5 @@ void WebServer::setStatus(const String& json) {
 }
 
 bool WebServer::rebootRequested() { return rebootFlag; }
+bool WebServer::rebootForUpdate() { return rebootUpdate; }
 bool WebServer::otaInProgress() { return otaFlag; }

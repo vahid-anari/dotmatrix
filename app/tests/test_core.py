@@ -435,3 +435,19 @@ def test_history(tmp_path):
     assert 3 <= len(day) <= 5 and all(lbl.endswith(":00") for _, lbl in day)
     month = h.ticks(now - 30 * 86400, now)
     assert 4 <= len(month) <= 5
+
+
+def test_events(tmp_path):
+    from core import history as h
+    ev = h.parse_events("t,kind,reason,seconds\n100,restart,2,0\n200,wifi,200,12\n300,wifi,8,75\nx,y\n")
+    assert len(ev) == 3
+    assert h.describe(ev[0]) == ("Restarted · firmware update", False)
+    assert h.describe(ev[1]) == ("Wi-Fi lost for 12 s · signal lost", False)
+    assert h.describe({"t": 1, "kind": "restart", "reason": 6, "seconds": 0})[1] is True
+    assert h.duration(75) == "1 min 15 s" and h.duration(3720) == "1 h 2 min"
+    assert h.summary(ev) == "The Wi-Fi dropped 2 times (1 min 27 s in all), the display restarted once."
+    assert h.summary([]).startswith("Nothing happened")
+    a = h.EventArchive(tmp_path / "events.csv")
+    assert a.merge(ev) == 3 and a.merge(ev) == 0 and a.last == 300
+    a.save()
+    assert h.EventArchive(tmp_path / "events.csv").events == a.events

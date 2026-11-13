@@ -38,6 +38,8 @@ class Network {
   char _timezone[64] = DEFAULT_TIMEZONE;
   uint32_t _connectStart = 0;
   uint32_t _lastRetry = 0;
+  uint32_t _lostAt = 0;       // millis() when the Wi-Fi was lost (0 = not lost)
+  uint8_t _lostReason = 0;
   bool _haveCredentials = false;
   String _ssid, _pass;
   void (*_onOnline)() = nullptr;

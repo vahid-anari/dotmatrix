@@ -144,3 +144,103 @@ def _steps(t: float, end: float, step: float):
         else:  # through mktime, so days stay at midnight across daylight saving
             lt = time.localtime(t + step + 3600)
             t = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 0, 0, 0, 0, 0, -1))
+
+
+# ------------------------------------------------------------------- events
+# What happened to the display (firmware 0.8.2): Wi-Fi lost and back, restarts.
+
+RESTARTS = {1: "power on", 2: "firmware update", 3: "restarted from the app", 4: "new Wi-Fi network",
+            5: "restarted by its software", 6: "stuck; restarted by the watchdog", 7: "crashed",
+            8: "the power dipped", 9: "unknown reason"}
+UNUSUAL_RESTARTS = {6, 7, 8}
+# The Wi-Fi's own disconnect reasons (ESP-IDF wifi_err_reason_t), in plain words.
+WIFI_REASONS = {2: "the router dropped it", 3: "the router dropped it", 4: "no traffic for too long",
+                8: "the display disconnected itself", 15: "couldn't sign in", 200: "signal lost", 201: "network not found",
+                202: "wrong password", 203: "couldn't join", 204: "couldn't sign in"}
+
+
+def parse_events(text: str) -> list[dict]:
+    out = []
+    for r in csv.DictReader(io.StringIO(text)):
+        try:
+            out.append({"t": int(r["t"]), "kind": r["kind"], "reason": int(r["reason"] or 0),
+                        "seconds": int(r["seconds"] or 0)})
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+def events_csv(events: list[dict]) -> str:
+    return "t,kind,reason,seconds\n" + "".join(
+        f"{e['t']},{e['kind']},{e['reason']},{e['seconds']}\n" for e in events)
+
+
+class EventArchive:
+    """Every event the phone has fetched, oldest first, one per (time, kind)."""
+
+    def __init__(self, path: Path):
+        self.path = path
+        try:
+            self.events = parse_events(path.read_text())
+        except OSError:
+            self.events = []
+
+    @property
+    def last(self) -> int:
+        return self.events[-1]["t"] if self.events else 0
+
+    def merge(self, events: list[dict]) -> int:
+        by = {(e["t"], e["kind"]): e for e in self.events}
+        new = sum(1 for e in events if (e["t"], e["kind"]) not in by)
+        by.update({(e["t"], e["kind"]): e for e in events})
+        self.events = [by[k] for k in sorted(by)]
+        return new
+
+    def save(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(".tmp")
+        tmp.write_text(events_csv(self.events))
+        tmp.replace(self.path)
+
+
+async def fetch_events(host: str, since: int = 0, timeout: float = 20) -> list[dict]:
+    url = f"http://{host}/api/events?since={since}"
+
+    def get():
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            return r.read().decode("utf-8", "replace")
+    return parse_events(await asyncio.to_thread(get))
+
+
+def duration(seconds: int) -> str:
+    if seconds < 60:
+        return f"{seconds} s"
+    if seconds < 3600:
+        return f"{seconds // 60} min" + (f" {seconds % 60} s" if seconds % 60 and seconds < 600 else "")
+    return f"{seconds // 3600} h {seconds % 3600 // 60} min"
+
+
+def describe(e: dict) -> tuple[str, bool]:
+    """A line for an event (without its time), and whether it's out of the ordinary."""
+    if e["kind"] == "wifi":
+        why = WIFI_REASONS.get(e["reason"], f"reason {e['reason']}")
+        return f"Wi-Fi lost for {duration(e['seconds'])} · {why}", False
+    return f"Restarted · {RESTARTS.get(e['reason'], 'unknown reason')}", e["reason"] in UNUSUAL_RESTARTS
+
+
+def summary(events: list[dict]) -> str:
+    drops = [e for e in events if e["kind"] == "wifi"]
+    restarts = [e for e in events if e["kind"] == "restart"]
+    if not drops and not restarts:
+        return "Nothing happened: the Wi-Fi stayed on, and the display didn't restart."
+    parts = []
+    if drops:
+        n = len(drops)
+        parts.append(f"the Wi-Fi dropped {n} time{'s' if n > 1 else ''} "
+                     f"({duration(sum(e['seconds'] for e in drops))} in all)")
+    else:
+        parts.append("the Wi-Fi stayed on")
+    n = len(restarts)
+    parts.append(f"the display restarted {'once' if n == 1 else f'{n} times'}" if n else "no restarts")
+    s = ", ".join(parts)
+    return s[0].upper() + s[1:] + "."

@@ -4,6 +4,15 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.8.2 — 2026-11-13
+
+- History has Events: each time the Wi-Fi was lost (for how long, and why, in plain
+  words) and each restart (power on, an update, from the app, or something unusual
+  like the watchdog, in orange), with a line that sums up the chosen range. The
+  display keeps the last 100; the phone keeps all it fetches.
+- The display shows its address only once after it starts, not each time the Wi-Fi
+  comes back.
+
 ## 0.8.1 — 2026-11-12
 
 - Slider knobs are whole at both ends (at 0 or the top they were cut in half).
