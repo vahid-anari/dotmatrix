@@ -4,6 +4,11 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.8.5 — 2026-11-14
+
+- The Wi-Fi radio stays awake again: with the capacitor, 0.8.3 (awake) had no
+  drops, while 0.8.4 (dozing) dropped for a second every few minutes.
+
 ## 0.8.4 — 2026-11-14
 
 - Found the cause of the Wi-Fi drops: the display's current spikes reaching the

@@ -33,6 +33,9 @@ void Network::begin(const Settings& settings) {
   _haveCredentials = Storage::loadWifi(_ssid, _pass);
   if (_haveCredentials) {
     WiFi.mode(WIFI_STA);
+    // Radio always awake: with the display's leftover noise, dozing between the
+    // router's beacons made it miss them and drop (tested in 0.8.4).
+    WiFi.setSleep(false);
     WiFi.setTxPower((wifi_power_t)WIFI_TX_POWER);
     WiFi.begin(_ssid.c_str(), _pass.c_str());
     _state = State::Connecting;
@@ -72,6 +75,7 @@ void Network::stopAP() {
   dns.stop();
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
   WiFi.setAutoReconnect(true);
   _apActive = false;
   LOG("wifi: setup AP stopped");
