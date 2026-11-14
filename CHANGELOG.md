@@ -4,6 +4,16 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.8.4 — 2026-11-14
+
+- Found the cause of the Wi-Fi drops: the display's current spikes reaching the
+  ESP32 through the shared 5 V. A 470 µF capacitor across the display's VCC and
+  GND fixes it; the wiring guide now asks for one.
+- After a drop, each new try starts over with a full search, so the display is
+  back seconds after the network is, not minutes.
+- The Wi-Fi radio may doze again between the router's signals (saves power;
+  keeping it awake didn't help).
+
 ## 0.8.3 — 2026-11-13
 
 - Steadier Wi-Fi: the display no longer lets its radio doze between the router's

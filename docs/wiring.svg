@@ -90,7 +90,7 @@
   </g>
   <g font-size="12" fill="#5a6876">
     <text x="340" y="376">Power: a 5 V USB charger of 2 A or more, into the ESP32's USB-C.</text>
-    <text x="340" y="396">Optional: a 470–1000 µF capacitor across VCC and GND at the display.</text>
+    <text x="340" y="396">Needed: a 470 µF capacitor across VCC and GND at the display (or the Wi-Fi drops).</text>
     <text x="340" y="416">Pin labels follow the usual Super Mini layout; check the labels</text>
     <text x="340" y="432">printed on your board before soldering.</text>
     <text x="340" y="456">Pins are set in firmware/src/config.h.</text>

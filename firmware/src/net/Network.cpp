@@ -33,7 +33,6 @@ void Network::begin(const Settings& settings) {
   _haveCredentials = Storage::loadWifi(_ssid, _pass);
   if (_haveCredentials) {
     WiFi.mode(WIFI_STA);
-    WiFi.setSleep(false);  // no modem power save: dozing, it missed the router's beacons and dropped
     WiFi.setTxPower((wifi_power_t)WIFI_TX_POWER);
     WiFi.begin(_ssid.c_str(), _pass.c_str());
     _state = State::Connecting;
@@ -133,9 +132,12 @@ void Network::loop() {
       } else if (_lostAt && now - _connectStart < WIFI_RECONNECT_MS) {
         // Lost while running: keep at it for a few minutes before the setup
         // network (which made a few seconds' drop last 81 s: 20 s, then a try a minute).
+        // Each try starts over with a full scan: WiFi.reconnect() kept trying the
+        // old channel and access point and failed for minutes.
         if (now - _lastRetry >= 15000) {
           _lastRetry = now;
-          WiFi.reconnect();
+          WiFi.disconnect(false);
+          WiFi.begin(_ssid.c_str(), _pass.c_str());
         }
       } else if (now - _connectStart >= (_lostAt ? WIFI_RECONNECT_MS : WIFI_CONNECT_TIMEOUT_MS)) {
         LOG("wifi: could not join, opening setup AP");
