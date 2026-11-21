@@ -13,7 +13,7 @@ from core.library import Library
 
 from . import theme
 
-APP_VERSION = "0.8.5"  # must match app/pyproject.toml and the release tag (CI checks)
+APP_VERSION = "0.8.6"  # must match app/pyproject.toml and the release tag (CI checks)
 log = logging.getLogger("app")
 
 
@@ -103,6 +103,18 @@ class App:
                 # The address may have changed (new IP from the router): look again.
                 if self._failures == 3 and not self.scanning:
                     self.page.run_task(self.find_device)
+        if what == "sensors":  # every second: only the screens that show live readings
+            for s in list(self._refreshables):
+                if hasattr(s, "live"):
+                    try:
+                        s.live()
+                    except Exception:  # noqa: BLE001
+                        log.exception("live refresh failed")
+            try:
+                self.page.update()
+            except Exception:  # noqa: BLE001
+                pass
+            return
         if what == "hello" and self.device.proto_mismatch:
             self.toast("This display runs a different firmware version. Some features may not work.")
         self.refresh()

@@ -452,3 +452,15 @@ def test_events(tmp_path):
     assert a.merge(ev) == 3 and a.merge(ev) == 0 and a.last == 300
     a.save()
     assert h.EventArchive(tmp_path / "events.csv").events == a.events
+
+
+def test_sensors_event_updates_state():
+    d = Device()
+    seen = []
+    d.listen(seen.append)
+    d._dispatch(json.dumps({"evt": "sensors", "sensors": {"lux": 5}}))  # before any state: ignored
+    assert seen == [] and not d.state
+    d._dispatch(json.dumps({"evt": "state", "brightness": 3, "sensors": {"lux": 1}}))
+    d._dispatch(json.dumps({"evt": "sensors", "sensors": {"lux": 18.5}, "brightness": 7}))
+    assert d.state["sensors"] == {"lux": 18.5} and d.state["brightness"] == 7
+    assert seen == ["state", "sensors"]

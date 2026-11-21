@@ -4,6 +4,18 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.8.6 — 2026-11-20
+
+- Automatic brightness follows the light on a true log scale between two lights
+  you choose on Home ("Dark is below", 0.1 lx by default, and "Bright is above",
+  40 lx): every tenfold step of light moves the level the same amount, so dawn,
+  below 1 lx, now counts as much as switching on the lamp. Before, almost
+  nothing below 1 lx changed the level.
+- "Follow the light instantly", for testing: no smoothing and no wait, the level
+  goes straight to the light.
+- Home shows the light (now to 0.01 lx below 1 lx) and the brightness every
+  second, not every five.
+
 ## 0.8.5 — 2026-11-14
 
 - The Wi-Fi radio stays awake again: with the capacitor, 0.8.3 (awake) had no

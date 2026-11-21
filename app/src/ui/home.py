@@ -9,6 +9,15 @@ from core.items import new_text_item
 from .tools import fmt_stopwatch, fmt_timer
 from .widgets import LabeledSlider, bottom_room, muted, section, status_dot
 
+LUX_LOW = ("0.05", "0.1", "0.2", "0.5", "1", "2")
+LUX_HIGH = ("10", "20", "40", "100", "200", "500", "1000")
+
+
+def lux_key(value: float, keys) -> str:
+    """The choice nearest to a lux value (on a log scale)."""
+    import math
+    return min(keys, key=lambda k: abs(math.log(float(k)) - math.log(max(value, 1e-3))))
+
 MODE_LABELS = {"text": "Texts", "clock": "Clock", "off": "Off"}
 
 
@@ -46,7 +55,7 @@ def sensor_rows(sensors: dict, units: str = "c") -> list[tuple[str, str]]:
         rows.append(("Air pressure", f"{sensors['pressure']:.0f} hPa"))
     if "lux" in sensors:
         lux = sensors["lux"]
-        rows.append(("Light", f"{lux:.1f} lx" if lux < 10 else f"{lux:.0f} lx"))
+        rows.append(("Light", f"{lux:.2f} lx" if lux < 1 else f"{lux:.1f} lx" if lux < 10 else f"{lux:.0f} lx"))
     return rows
 
 
@@ -109,7 +118,18 @@ class HomeTab:
                                        lambda v: self._auto_level(dark=int(v)), self._brightness_released)
         self.auto_bright = LabeledSlider("With the lights on", 2, 0, 15, 1, lambda v: f"{int(v)} of 15",
                                          lambda v: self._auto_level(bright=int(v)), self._brightness_released)
-        self.auto_rows = ft.Column([self.auto_dark, self.auto_bright], spacing=10)
+        # Instant (firmware 0.8.6): no smoothing, so a test shows at once.
+        self.auto_instant = ft.Switch(label="Follow the light instantly (for testing)",
+                                      on_change=self._auto_instant_changed)
+        # The light that counts as dark and as bright (firmware 0.8.6); between them a log scale.
+        self.lux_low = ft.Dropdown(label="Dark is below", expand=True,
+                                   options=[ft.DropdownOption(key=k, text=f"{k} lx") for k in LUX_LOW],
+                                   on_select=lambda e: self._auto_level(lux_low=float(e.control.value)))
+        self.lux_high = ft.Dropdown(label="Bright is above", expand=True,
+                                    options=[ft.DropdownOption(key=k, text=f"{k} lx") for k in LUX_HIGH],
+                                    on_select=lambda e: self._auto_level(lux_high=float(e.control.value)))
+        self.lux_range = ft.Row([self.lux_low, self.lux_high], spacing=12)
+        self.auto_rows = ft.Column([self.auto_dark, self.auto_bright, self.lux_range, self.auto_instant], spacing=10)
         self.message = ft.TextField(hint_text="Type a message", expand=True, dense=True,
                                     max_length=128, counter="", on_submit=self._show_message)
         self.message_btn = ft.FilledButton("Show", icon=ft.Icons.PLAY_ARROW, on_click=self._show_message)
@@ -171,6 +191,14 @@ class HomeTab:
             if ab:
                 self.auto_dark.set(ab.get("dark", 0))
                 self.auto_bright.set(ab.get("bright", 2))
+        self.lux_range.visible = bool(ab) and "lux_low" in ab
+        if self.lux_range.visible:
+            self.lux_low.value = lux_key(ab["lux_low"], LUX_LOW)
+            self.lux_high.value = lux_key(ab["lux_high"], LUX_HIGH)
+            self.lux_low.disabled = self.lux_high.disabled = not on
+        self.auto_instant.visible = bool(ab) and "instant" in ab
+        self.auto_instant.value = bool(ab and ab.get("instant"))
+        self.auto_instant.disabled = not on
         night = on and bool(st.get("night"))
         self.night_note.value = "Dimmed for the night right now." if night else ""
         self.night_note.visible = night
@@ -194,11 +222,24 @@ class HomeTab:
         sensors = st.get("sensors") if on else None
         self.room_section.visible = bool(sensors)
         self.history_btn.visible = "auto_brightness" in d.settings  # firmware 0.8 keeps the history
+        self._room_rows(sensors)
+
+    def _room_rows(self, sensors):
         if sensors:
-            units = d.settings.get("weather", {}).get("units", "c")
+            units = self.app.device.settings.get("weather", {}).get("units", "c")
             self.room.controls = [
                 ft.Row([muted(k, 14), ft.Text(v, size=14)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
                 for k, v in sensor_rows(sensors, units)]
+
+    def live(self):
+        """Every second (firmware 0.8.6): the readings, and the level automatic brightness chose."""
+        d = self.app.device
+        if not d.connected:
+            return
+        self._room_rows(d.state.get("sensors"))
+        ab = d.settings.get("auto_brightness")
+        if ab and ab.get("enabled") and time.monotonic() - self._brightness_touched > 2:
+            self.brightness.set(d.state.get("brightness", 6))
 
     def _now(self, mode: str, st: dict):
         d = self.app.device
@@ -272,6 +313,9 @@ class HomeTab:
     def _auto_level(self, **level):
         self._brightness_touched = time.monotonic()
         self.app.device.send("set_settings", settings={"auto_brightness": level})
+
+    def _auto_instant_changed(self, e):
+        self.app.device.send("set_settings", settings={"auto_brightness": {"instant": bool(e.control.value)}})
 
     def _brightness_released(self, e):
         self._brightness_touched = time.monotonic()

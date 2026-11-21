@@ -39,6 +39,11 @@ struct Settings {
     bool enabled = false;
     uint8_t dark = 0;
     uint8_t bright = 2;
+    bool instant = false;
+    // The light that counts as dark and as bright, in lux (since 0.8.6). Between
+    // them the level follows the light on a log scale: every tenfold step of
+    // light moves it the same amount, at dawn as in daylight.
+    float luxLow = 0.1f, luxHigh = 40.0f;  // follow each reading at once, no smoothing (for testing; since 0.8.6)
   } autoBrightness;
 
   struct Night {

@@ -116,6 +116,14 @@ bool settingsUpdate(Settings& s, JsonObjectConst o, const char*& err) {
   JsonObjectConst ab = o["auto_brightness"];
   if (!ab.isNull()) {
     if (ab["enabled"].is<bool>()) n.autoBrightness.enabled = ab["enabled"];
+    if (ab["instant"].is<bool>()) n.autoBrightness.instant = ab["instant"];
+    if (ab["lux_low"].is<float>()) n.autoBrightness.luxLow = ab["lux_low"];
+    if (ab["lux_high"].is<float>()) n.autoBrightness.luxHigh = ab["lux_high"];
+    const auto& nb = n.autoBrightness;
+    if (!(nb.luxLow >= 0.01f && nb.luxLow <= 1000.0f && nb.luxHigh >= nb.luxLow * 2 && nb.luxHigh <= 100000.0f)) {
+      err = "auto_brightness: lux_low 0.01..1000, lux_high at least twice lux_low";
+      return false;
+    }
     for (const char* k : {"dark", "bright"}) {
       if (!jsonIsNumber(ab[k])) continue;
       int b = jsonNum(ab[k], 0);
@@ -176,6 +184,9 @@ void settingsToJson(const Settings& s, JsonObject o) {
   ab["enabled"] = s.autoBrightness.enabled;
   ab["dark"] = s.autoBrightness.dark;
   ab["bright"] = s.autoBrightness.bright;
+  ab["instant"] = s.autoBrightness.instant;  // since 0.8.6
+  ab["lux_low"] = s.autoBrightness.luxLow;
+  ab["lux_high"] = s.autoBrightness.luxHigh;
   JsonObject n = o["night"].to<JsonObject>();
   n["enabled"] = s.night.enabled;
   formatHHMM(s.night.from, buf, sizeof(buf));

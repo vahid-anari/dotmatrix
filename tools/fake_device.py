@@ -16,6 +16,7 @@ what the real device supports. Every command is printed as it arrives.
 import argparse
 import asyncio
 import json
+import math
 import re
 import time
 from pathlib import Path
@@ -57,7 +58,7 @@ settings = {
     "clock": {"format_24h": True, "seconds": True, "date_every": 0, "date_format": "%a %b %d",
               "weather_every": 0, "extras_every": 60, "show_date": True, "show_weather": True,
               "extras_style": "drop", "extras_pause": 3000, "show_indoor": True},
-    "auto_brightness": {"enabled": False, "dark": 0, "bright": 2},
+    "auto_brightness": {"enabled": False, "dark": 0, "bright": 2, "instant": False, "lux_low": 0.1, "lux_high": 40.0},
     "weather": {"place": "Toronto, Ontario, Canada", "lat": 43.65, "lon": -79.38, "units": "c"},
     "night": {"enabled": False, "from": "23:00", "to": "07:00", "brightness": 1},
 }
@@ -137,9 +138,14 @@ def state_msg():
         "timer": {"remaining_ms": timer_remaining(), "total_ms": timer["total"],
                   "running": timer["clock"].running, "done": timer["done"]},
         **fake_weather(),
-        "sensors": {"lux": 85, "temp": 22.4, "humidity": 41, "pressure": 1003.2},
+        "sensors": fake_sensors(),
         "auto_brightness": settings["auto_brightness"]["enabled"],
     }
+
+
+def fake_sensors():
+    # The light wanders a little each second, like a real room.
+    return {"lux": round(18 + 4 * math.sin(time.time() / 7), 1), "temp": 22.4, "humidity": 41, "pressure": 1003.2}
 
 
 def fake_rows(res: int, since: int, human: bool) -> str:
@@ -413,7 +419,7 @@ request_version_after_update = "0.2.0"
 
 async def ticker():
     """Advance the playlist index, finish the timer, broadcast state."""
-    last = 0.0
+    last = last_sensors = 0.0
     while True:
         await asyncio.sleep(0.25)
         if timer["clock"].running and timer_remaining() == 0:
@@ -423,6 +429,9 @@ async def ticker():
             state["mode"], state["preview"] = "timer", None
             log("timer: done")
             await broadcast(state_msg())
+        if time.monotonic() - last_sensors >= 1:
+            last_sensors = time.monotonic()
+            await broadcast({"evt": "sensors", "sensors": fake_sensors(), "brightness": state_msg()["brightness"]})
         if time.monotonic() - last >= 5:
             last = time.monotonic()
             items = state["playlist"]["items"]

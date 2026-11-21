@@ -57,7 +57,7 @@ class App {
   bool _settingsDirty = false;
   bool _playlistDirty = false;
   uint32_t _dirtySince = 0;
-  uint32_t _lastState = 0;
+  uint32_t _lastState = 0, _lastSensors = 0;
   uint32_t _lastCleanup = 0;
   uint32_t _lastBrightnessCheck = 0;
   uint8_t _appliedBase = 255;
@@ -92,6 +92,8 @@ class App {
   void sendHello(uint32_t client);
   void fillState(JsonDocument& doc);
   void broadcastState();
+  void fillSensors(JsonObject so);
+  void broadcastSensors();
   void sendSettings(uint32_t client);
   void ack(uint32_t client, int id, bool ok, const char* error = nullptr);
   void endPreview();

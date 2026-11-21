@@ -186,6 +186,12 @@ class Device:
             self.state_at = time.monotonic()
         elif evt == "settings":
             self.settings = msg.get("settings", {})
+        elif evt == "sensors":  # firmware 0.8.6: the readings every second
+            if not self.state:
+                return
+            self.state["sensors"] = msg.get("sensors", {})
+            if "brightness" in msg:
+                self.state["brightness"] = msg["brightness"]
         else:
             return
         self._emit(evt)

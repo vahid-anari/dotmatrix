@@ -174,6 +174,16 @@ static void testSettings() {
   deserializeJson(doc, R"({"auto_brightness":{"enabled":true,"bright":5}})");
   CHECK(settingsUpdate(back3, doc.as<JsonObjectConst>(), err) && back3.autoBrightness.enabled &&
         back3.autoBrightness.bright == 5 && back3.autoBrightness.dark == 0);
+  CHECK(!back3.autoBrightness.instant);
+  deserializeJson(doc, R"({"auto_brightness":{"instant":true}})");
+  CHECK(settingsUpdate(back3, doc.as<JsonObjectConst>(), err) && back3.autoBrightness.instant &&
+        back3.autoBrightness.bright == 5);
+  CHECK(back3.autoBrightness.luxLow == 0.1f && back3.autoBrightness.luxHigh == 40.0f);
+  deserializeJson(doc, R"({"auto_brightness":{"lux_low":0.2,"lux_high":200}})");
+  CHECK(settingsUpdate(back3, doc.as<JsonObjectConst>(), err) && back3.autoBrightness.luxLow == 0.2f &&
+        back3.autoBrightness.luxHigh == 200.0f);
+  deserializeJson(doc, R"({"auto_brightness":{"lux_high":0.3}})");
+  CHECK(!settingsUpdate(back3, doc.as<JsonObjectConst>(), err) && back3.autoBrightness.luxHigh == 200.0f);
   deserializeJson(doc, R"({"auto_brightness":{"dark":16}})");
   CHECK(!settingsUpdate(back3, doc.as<JsonObjectConst>(), err));
   // 0.7: the weather place's country, saved and read back; checked.

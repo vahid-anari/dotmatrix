@@ -154,6 +154,12 @@ void App::loop() {
   saveIfDue(now);
   updateLed();
 
+  // The light and the brightness every second to the app (since 0.8.6), between
+  // the full state every few seconds.
+  if (now - _lastSensors >= 1000) {
+    _lastSensors = now;
+    broadcastSensors();
+  }
   if (_stateChanged || now - _lastState >= STATE_BROADCAST_MS) {
     _stateChanged = false;
     _lastState = now;
@@ -295,11 +301,15 @@ void App::updateAutoBrightness(uint32_t now) {
   if (now - _autoLastSample < 1000) return;
   _autoLastSample = now;
   float lux = sensors.lux();
-  _luxSmooth = _luxSmooth < 0 ? lux : _luxSmooth + 0.25f * (lux - _luxSmooth);
   const auto& a = settings.autoBrightness;
-  float f = constrain(log10f(1 + _luxSmooth) / log10f(1 + 40.0f), 0.0f, 1.0f);
+  // Instant (for testing): each reading as it is, and the display goes there at once.
+  _luxSmooth = (_luxSmooth < 0 || a.instant) ? lux : _luxSmooth + 0.25f * (lux - _luxSmooth);
+  // Log scale between the two lights (0.8.6; before, log(1 + lux) up to 40 lx,
+  // which left almost nothing to changes below 1 lx, like dawn).
+  float f = _luxSmooth <= a.luxLow ? 0.0f
+            : constrain(log10f(_luxSmooth / a.luxLow) / log10f(a.luxHigh / a.luxLow), 0.0f, 1.0f);
   uint8_t want = (uint8_t)lroundf(a.dark + f * ((int)a.bright - (int)a.dark));
-  if (_autoLevel == 255) {  // just switched on: go there at once
+  if (_autoLevel == 255 || a.instant) {  // just switched on, or instant: go there at once
     _autoLevel = _autoWant = want;
     return;
   }
@@ -460,15 +470,26 @@ void App::fillState(JsonDocument& doc) {
     wo["age"] = (now - w.at) / 1000;
   }
   // Sensors that are fitted and have answered; values rounded for the app.
-  if (sensors.lightValid() || sensors.climateValid()) {
-    JsonObject so = doc["sensors"].to<JsonObject>();
-    if (sensors.lightValid()) so["lux"] = sensors.lux() < 10 ? roundf(sensors.lux() * 10) / 10.0 : roundf(sensors.lux());
-    if (sensors.climateValid()) {
-      so["temp"] = roundf(sensors.tempC() * 10) / 10.0;
-      if (sensors.hasHumidity()) so["humidity"] = roundf(sensors.humidity());
-      so["pressure"] = roundf(sensors.pressureHPa() * 10) / 10.0;
-    }
+  if (sensors.lightValid() || sensors.climateValid()) fillSensors(doc["sensors"].to<JsonObject>());
+}
+
+void App::fillSensors(JsonObject so) {
+  float l = sensors.lux();  // two decimals below 1 lx (dawn), one below 10
+  if (sensors.lightValid()) so["lux"] = l < 1 ? roundf(l * 100) / 100.0 : l < 10 ? roundf(l * 10) / 10.0 : roundf(l);
+  if (sensors.climateValid()) {
+    so["temp"] = roundf(sensors.tempC() * 10) / 10.0;
+    if (sensors.hasHumidity()) so["humidity"] = roundf(sensors.humidity());
+    so["pressure"] = roundf(sensors.pressureHPa() * 10) / 10.0;
   }
+}
+
+void App::broadcastSensors() {
+  if (WebServer::clientCount() == 0 || !(sensors.lightValid() || sensors.climateValid())) return;
+  JsonDocument doc;
+  doc["evt"] = "sensors";
+  fillSensors(doc["sensors"].to<JsonObject>());
+  doc["brightness"] = display.brightness();
+  WebServer::broadcast(doc);
 }
 
 void App::broadcastState() {
