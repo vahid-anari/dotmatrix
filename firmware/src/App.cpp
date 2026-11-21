@@ -12,6 +12,7 @@
 #include "model/EventLog.h"
 #include "model/JsonUtil.h"
 #include "net/WebServer.h"
+#include "net/OtaProgress.h"
 #include "storage/Storage.h"
 
 App app;
@@ -53,6 +54,7 @@ void App::begin() {
 
   _led.begin();
   display.begin();
+  OtaProgress::draw = [](int8_t p) { app.drawOta(p); };
 
   Storage::begin();
   Storage::loadSettings(settings);
@@ -126,8 +128,14 @@ void App::loop() {
     }
   }
 
-  if (WebServer::otaInProgress()) {
-    // Keep the display quiet while flashing.
+  if (WebServer::otaInProgress() || OtaProgress::percent >= 0) {
+    // A firmware upload: how far it has got instead of the mode (since 0.8.7;
+    // before, the display just stood still).
+    if (OtaProgress::percent != _otaShown) drawOta(OtaProgress::percent);
+  } else if (OtaProgress::failed) {
+    OtaProgress::failed = false;
+    _otaShown = -1;
+    showNotice("Update failed");  // then back to the mode
   } else if (_noticeActive) {
     updateNotice();
   } else if (needsSetupNotice()) {
@@ -209,6 +217,22 @@ void App::setMode(Mode* m, bool persist) {
     markDirty(true, false);
   }
   _stateChanged = true;
+}
+
+// "Update 37%" while a firmware upload runs, "Restart" once it's in (since 0.8.7).
+void App::drawOta(int8_t percent) {
+  _otaShown = percent;
+  if (percent < 0) return;
+  char text[16];
+  if (percent >= 100)
+    strlcpy(text, "Restart", sizeof(text));
+  else
+    snprintf(text, sizeof(text), "Update %d%%", percent);
+  Frame f;
+  display.drawText(f, text, Align::Center);
+  display.setPower(true);
+  display.setBrightness(brightnessFor(-1));
+  display.push(f);
 }
 
 void App::showNotice(const char* text, bool fast) {

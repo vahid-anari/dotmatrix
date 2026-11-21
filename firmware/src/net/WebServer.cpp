@@ -6,6 +6,8 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <Update.h>
+
+#include "OtaProgress.h"
 #include <WiFi.h>
 
 #include "../config.h"
@@ -144,12 +146,22 @@ static void handleWifi(AsyncWebServerRequest* r) {
   rebootFlag = true;
 }
 
-static size_t otaBytes = 0;
+static size_t otaBytes = 0, otaTotal = 0;
+
+namespace OtaProgress {
+volatile int8_t percent = -1;
+volatile bool failed = false;
+void (*draw)(int8_t) = nullptr;
+}  // namespace OtaProgress
 static AsyncWebServerRequest* otaOwner = nullptr;  // the request whose upload is being flashed
 
 static void otaAbort(const char* why) {
   if (Update.isRunning()) Update.abort();
-  if (otaFlag) LOG("ota: aborted (%s)", why);
+  if (otaFlag) {
+    LOG("ota: aborted (%s)", why);
+    OtaProgress::failed = true;
+  }
+  OtaProgress::percent = -1;
   otaFlag = false;
   otaBytes = 0;
   otaOwner = nullptr;
@@ -170,6 +182,9 @@ static void handleUpdateUpload(AsyncWebServerRequest* r, const String& filename,
     }
     otaFlag = true;
     otaOwner = r;
+    otaTotal = r->contentLength();  // the whole request: the file plus a little form wrapping
+    OtaProgress::failed = false;
+    OtaProgress::percent = 0;
     // If the phone drops the connection mid-upload, don't stay stuck.
     r->onDisconnect([r]() {
       if (otaOwner == r && !rebootFlag) otaAbort("client disconnected");
@@ -182,6 +197,7 @@ static void handleUpdateUpload(AsyncWebServerRequest* r, const String& filename,
     return;
   }
   otaBytes += len;
+  if (otaTotal) OtaProgress::percent = (int8_t)min<size_t>(99, otaBytes * 100 / otaTotal);
   if (final) {
     bool ok = Update.end(true);
     LOG("ota: %s (%u bytes)", ok ? "done" : Update.errorString(), (unsigned)otaBytes);
@@ -198,6 +214,7 @@ static void handleUpdateDone(AsyncWebServerRequest* r) {
   bool ok = otaBytes > 0 && Update.isFinished() && !Update.hasError();
   r->send(ok ? 200 : 500, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false}");
   if (ok) {
+    OtaProgress::percent = 100;
     rebootUpdate = true;
     rebootFlag = true;
   }

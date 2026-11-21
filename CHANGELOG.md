@@ -4,6 +4,13 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.8.7 — 2026-11-21
+
+- While new firmware comes in, the display shows how far it has got
+  ("Update 37%"), then "Restart", or "Update failed" before going back to what
+  it was showing. Before, it just stood still. You'll see it from the next
+  update on: this one is still installed by the old firmware.
+
 ## 0.8.6 — 2026-11-20
 
 - Automatic brightness follows the light on a true log scale between two lights

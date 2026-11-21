@@ -170,7 +170,7 @@ power on
 
 - NTP syncs at boot and then hourly. Between syncs the internal clock runs on its own, and if the internet drops the clock keeps going.
 - The device shows its IP or setup network name on the matrix when it changes state, so the user can always see what to connect to.
-- OTA: the app uploads a `.bin` to `POST /update`, and `ArduinoOTA` is also enabled for development.
+- OTA: the app uploads a `.bin` to `POST /update`, and `ArduinoOTA` is also enabled for development. Since 0.8.7 the display shows the progress of either ("Update 37%", then "Restart", or "Update failed").
 
 ## 6. Protocol (v1)
 

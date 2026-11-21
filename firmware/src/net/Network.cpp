@@ -1,6 +1,8 @@
 #include "Network.h"
 
 #include <ArduinoOTA.h>
+
+#include "OtaProgress.h"
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <WiFi.h>
@@ -105,10 +107,31 @@ void Network::startServices() {
   ArduinoOTA.setHostname(_hostname);
   ArduinoOTA.setMdnsEnabled(false);  // already announced above
   // handle() blocks the loop for the whole upload; keep the watchdog fed.
-  ArduinoOTA.onStart([]() { LOG("ota: network upload started"); });
-  ArduinoOTA.onProgress([](unsigned int, unsigned int) { esp_task_wdt_reset(); });
-  ArduinoOTA.onEnd([]() { EventLog::noteRestart(EventLog::UPDATE); });
-  ArduinoOTA.onError([](ota_error_t e) { LOG("ota: error %d", (int)e); });
+  // The display shows how far it has got (drawn from here: the loop is held up).
+  ArduinoOTA.onStart([]() {
+    LOG("ota: network upload started");
+    OtaProgress::failed = false;
+    OtaProgress::percent = 0;
+    if (OtaProgress::draw) OtaProgress::draw(0);
+  });
+  ArduinoOTA.onProgress([](unsigned int done, unsigned int total) {
+    esp_task_wdt_reset();
+    int8_t p = total ? (int8_t)min<unsigned>(99, done * 100ull / total) : 0;
+    if (p != OtaProgress::percent) {
+      OtaProgress::percent = p;
+      if (OtaProgress::draw) OtaProgress::draw(p);
+    }
+  });
+  ArduinoOTA.onEnd([]() {
+    EventLog::noteRestart(EventLog::UPDATE);
+    OtaProgress::percent = 100;
+    if (OtaProgress::draw) OtaProgress::draw(100);
+  });
+  ArduinoOTA.onError([](ota_error_t e) {
+    LOG("ota: error %d", (int)e);
+    OtaProgress::percent = -1;
+    OtaProgress::failed = true;
+  });
   ArduinoOTA.begin();
 }
 
