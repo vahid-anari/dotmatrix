@@ -4,6 +4,16 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.8.8 — 2026-11-21
+
+- A switch that's off is now visible: its knob and edge were the same grey as the
+  track, so it looked like an empty pill (dark theme especially).
+- "Dark is below" and "Bright is above" are number fields instead of lists:
+  type any lux value; it's sent on Enter or when you leave the field, and a short
+  note under the field says what's wrong if it can't be used.
+- The firmware is unchanged apart from its version, so installing it shows the
+  new update progress on the display.
+
 ## 0.8.7 — 2026-11-21
 
 - While new firmware comes in, the display shows how far it has got

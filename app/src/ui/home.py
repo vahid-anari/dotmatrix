@@ -9,14 +9,26 @@ from core.items import new_text_item
 from .tools import fmt_stopwatch, fmt_timer
 from .widgets import LabeledSlider, bottom_room, muted, section, status_dot
 
-LUX_LOW = ("0.05", "0.1", "0.2", "0.5", "1", "2")
-LUX_HIGH = ("10", "20", "40", "100", "200", "500", "1000")
+def lux_text(v: float) -> str:
+    """A lux value as typed: 0.1, 40, 2.5 (no trailing zeros)."""
+    return f"{v:.3f}".rstrip("0").rstrip(".")
 
 
-def lux_key(value: float, keys) -> str:
-    """The choice nearest to a lux value (on a log scale)."""
-    import math
-    return min(keys, key=lambda k: abs(math.log(float(k)) - math.log(max(value, 1e-3))))
+def lux_range_error(low: str, high: str) -> tuple[str | None, str | None]:
+    """What's wrong with the two lux fields, if anything (the display's own rule)."""
+    try:
+        lo = float(low)
+    except ValueError:
+        return "A number", None
+    try:
+        hi = float(high)
+    except ValueError:
+        return None, "A number"
+    if not 0.01 <= lo <= 1000:
+        return "0.01 to 1000", None
+    if not lo * 2 <= hi <= 100000:
+        return None, f"At least {lux_text(lo * 2)}"
+    return None, None
 
 MODE_LABELS = {"text": "Texts", "clock": "Clock", "off": "Off"}
 
@@ -122,12 +134,13 @@ class HomeTab:
         self.auto_instant = ft.Switch(label="Follow the light instantly (for testing)",
                                       on_change=self._auto_instant_changed)
         # The light that counts as dark and as bright (firmware 0.8.6); between them a log scale.
-        self.lux_low = ft.Dropdown(label="Dark is below", expand=True,
-                                   options=[ft.DropdownOption(key=k, text=f"{k} lx") for k in LUX_LOW],
-                                   on_select=lambda e: self._auto_level(lux_low=float(e.control.value)))
-        self.lux_high = ft.Dropdown(label="Bright is above", expand=True,
-                                    options=[ft.DropdownOption(key=k, text=f"{k} lx") for k in LUX_HIGH],
-                                    on_select=lambda e: self._auto_level(lux_high=float(e.control.value)))
+        # Typed numbers (0.8.8; dropdowns before), sent on Enter or on leaving the field.
+        lux_field = lambda label: ft.TextField(
+            label=label, suffix="lx", expand=True, keyboard_type=ft.KeyboardType.NUMBER,
+            input_filter=ft.InputFilter(regex_string=r"^[0-9]*[.]?[0-9]*$", allow=True, replacement_string=""),
+            on_submit=self._lux_entered, on_blur=self._lux_entered)
+        self.lux_low = lux_field("Dark is below")
+        self.lux_high = lux_field("Bright is above")
         self.lux_range = ft.Row([self.lux_low, self.lux_high], spacing=12)
         self.auto_rows = ft.Column([self.auto_dark, self.auto_bright, self.lux_range, self.auto_instant], spacing=10)
         self.message = ft.TextField(hint_text="Type a message", expand=True, dense=True,
@@ -193,8 +206,9 @@ class HomeTab:
                 self.auto_bright.set(ab.get("bright", 2))
         self.lux_range.visible = bool(ab) and "lux_low" in ab
         if self.lux_range.visible:
-            self.lux_low.value = lux_key(ab["lux_low"], LUX_LOW)
-            self.lux_high.value = lux_key(ab["lux_high"], LUX_HIGH)
+            for field, key in ((self.lux_low, "lux_low"), (self.lux_high, "lux_high")):
+                if not field.error:  # keep what's being corrected
+                    field.value = lux_text(ab[key])
             self.lux_low.disabled = self.lux_high.disabled = not on
         self.auto_instant.visible = bool(ab) and "instant" in ab
         self.auto_instant.value = bool(ab and ab.get("instant"))
@@ -313,6 +327,17 @@ class HomeTab:
     def _auto_level(self, **level):
         self._brightness_touched = time.monotonic()
         self.app.device.send("set_settings", settings={"auto_brightness": level})
+
+    def _lux_entered(self, e):
+        lo_err, hi_err = lux_range_error(self.lux_low.value or "", self.lux_high.value or "")
+        self.lux_low.error, self.lux_high.error = lo_err, hi_err
+        self.lux_range.update()
+        if lo_err or hi_err:
+            return
+        ab = self.app.device.settings.get("auto_brightness", {})
+        lo, hi = float(self.lux_low.value), float(self.lux_high.value)
+        if (lo, hi) != (ab.get("lux_low"), ab.get("lux_high")):
+            self._auto_level(lux_low=lo, lux_high=hi)
 
     def _auto_instant_changed(self, e):
         self.app.device.send("set_settings", settings={"auto_brightness": {"instant": bool(e.control.value)}})

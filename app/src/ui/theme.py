@@ -33,12 +33,25 @@ def _scheme(p: dict, primary: str, gold: str, dark: bool) -> ft.ColorScheme:
     )
 
 
+def _switch(p: dict, on_thumb: str) -> ft.SwitchTheme:
+    # Material's switch draws the "off" thumb and track border in the outline colour,
+    # which here is the same as the track, so an off switch was a blank grey pill.
+    # Draw them in the muted ink instead (0.8.8); "on" keeps the defaults.
+    off = p["muted"]
+    return ft.SwitchTheme(
+        thumb_color={ft.ControlState.SELECTED: on_thumb, ft.ControlState.DISABLED: ft.Colors.with_opacity(0.38, off),
+                     ft.ControlState.DEFAULT: off},
+        track_outline_color={ft.ControlState.SELECTED: ft.Colors.TRANSPARENT,
+                             ft.ControlState.DISABLED: ft.Colors.with_opacity(0.38, off),
+                             ft.ControlState.DEFAULT: off})
+
+
 def apply(page: ft.Page):
     page.fonts = {FONT: "IBMPlexSans.ttf"}
     page.theme = ft.Theme(font_family=FONT, color_scheme=_scheme(LIGHT, GREEN, GOLD, False),
-                          scaffold_bgcolor=LIGHT["bg"])
+                          scaffold_bgcolor=LIGHT["bg"], switch_theme=_switch(LIGHT, "#FFFFFF"))
     page.dark_theme = ft.Theme(font_family=FONT, color_scheme=_scheme(DARK, GREEN_DARK, GOLD_DARK, True),
-                               scaffold_bgcolor=DARK["bg"])
+                               scaffold_bgcolor=DARK["bg"], switch_theme=_switch(DARK, "#0D1F17"))
     page.theme_mode = ft.ThemeMode.SYSTEM
 
 

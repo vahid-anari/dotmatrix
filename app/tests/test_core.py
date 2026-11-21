@@ -464,3 +464,12 @@ def test_sensors_event_updates_state():
     d._dispatch(json.dumps({"evt": "sensors", "sensors": {"lux": 18.5}, "brightness": 7}))
     assert d.state["sensors"] == {"lux": 18.5} and d.state["brightness"] == 7
     assert seen == ["state", "sensors"]
+
+
+def test_lux_range_error():
+    from ui.home import lux_range_error, lux_text
+    assert lux_range_error("0.1", "40") == (None, None)
+    assert lux_range_error("", "40") == ("A number", None)
+    assert lux_range_error("0", "40") == ("0.01 to 1000", None)
+    assert lux_range_error("10", "15") == (None, "At least 20")
+    assert lux_text(0.1) == "0.1" and lux_text(40.0) == "40" and lux_text(0.05) == "0.05"
