@@ -184,6 +184,14 @@ static void testSettings() {
         back3.autoBrightness.luxHigh == 200.0f);
   deserializeJson(doc, R"({"auto_brightness":{"lux_high":0.3}})");
   CHECK(!settingsUpdate(back3, doc.as<JsonObjectConst>(), err) && back3.autoBrightness.luxHigh == 200.0f);
+  // radio (0.9.0): dBm to the nearest step, sleep, limits
+  CHECK(back3.radio.txQ == 34 && !back3.radio.sleep);
+  deserializeJson(doc, R"({"radio":{"tx_power":15,"sleep":true}})");
+  CHECK(settingsUpdate(back3, doc.as<JsonObjectConst>(), err) && back3.radio.txQ == 60 && back3.radio.sleep);
+  deserializeJson(doc, R"({"radio":{"tx_power":11.2}})");
+  CHECK(settingsUpdate(back3, doc.as<JsonObjectConst>(), err) && back3.radio.txQ == 44);
+  deserializeJson(doc, R"({"radio":{"tx_power":25}})");
+  CHECK(!settingsUpdate(back3, doc.as<JsonObjectConst>(), err) && back3.radio.txQ == 44);
   deserializeJson(doc, R"({"auto_brightness":{"dark":16}})");
   CHECK(!settingsUpdate(back3, doc.as<JsonObjectConst>(), err));
   // 0.7: the weather place's country, saved and read back; checked.

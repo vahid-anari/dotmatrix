@@ -30,7 +30,7 @@ def bottom_room() -> ft.Container:
 
 
 def section(title: str, *controls: ft.Control, note: str | None = None) -> ft.Column:
-    head = [ft.Text(title, size=15, weight=ft.FontWeight.W_600)]
+    head = [ft.Text(title, size=15, weight=ft.FontWeight.W_600)] if title else []  # "" on a page of its own
     if note:
         head.append(ft.Text(note, size=13, color=ft.Colors.ON_SURFACE_VARIANT))
     return ft.Column([ft.Column(head, spacing=2), *controls], spacing=10)
@@ -53,10 +53,13 @@ class LabeledSlider(ft.Column):
                                 on_change=self._changed, on_change_end=on_release,
                                 # room for the knob at both ends (at 0 it was cut in half)
                                 padding=ft.Padding.symmetric(horizontal=10, vertical=0))
+        label_text = ft.Text(label, size=14)
         super().__init__([
-            ft.Row([ft.Text(label, size=14), self.value_text], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Row([label_text, self.value_text], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             self.slider,
         ], spacing=2)
+
+        self.label = label_text  # (after the Column is set up)
 
     def _changed(self, e):
         v = e.control.value

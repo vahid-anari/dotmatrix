@@ -473,3 +473,23 @@ def test_lux_range_error():
     assert lux_range_error("0", "40") == ("0.01 to 1000", None)
     assert lux_range_error("10", "15") == (None, "At least 20")
     assert lux_text(0.1) == "0.1" and lux_text(40.0) == "40" and lux_text(0.05) == "0.05"
+
+
+def test_radio_event_and_device_rows():
+    from core import history as h
+    from ui.display_page import device_rows, subtitle
+    assert h.describe({"kind": "radio", "reason": 34, "seconds": 0, "t": 0}) == (
+        "Wi-Fi setting undone: no connection with it, back to 8.5 dBm", True)
+
+    class D:
+        connected = True
+        host = "192.168.40.118"
+        hello = {"fw": "0.9.0", "name": "dotmatrix"}
+        state = {"rssi": -48, "uptime": 3700, "chip": {"c": 47.2, "min": 41.0, "max": 50.4},
+                 "free_heap": 153600, "heap_size": 280000, "min_free_heap": 148480,
+                 "fs_used": 118784, "fs_total": 196608}
+    rows = dict(device_rows(D()))
+    assert rows["Wi-Fi signal"] == "Strong (−48 dBm)"
+    assert rows["Chip temperature"] == "47 °C (since the start 41–50)"
+    assert rows["Storage"] == "116 KB of 192 KB used"
+    assert subtitle(D()) == "dotmatrix.local · chip 47 °C · 150 KB free"

@@ -79,7 +79,7 @@ String csv(uint32_t since) {
   for (size_t i = 0; i < count; i++) {
     const Event& e = events[i];
     if (e.time <= since) continue;
-    snprintf(line, sizeof(line), "%lu,%s,%u,%u,%d\n", (unsigned long)e.time, e.kind == WIFI_LOST ? "wifi" : "restart",
+    snprintf(line, sizeof(line), "%lu,%s,%u,%u,%d\n", (unsigned long)e.time, e.kind == WIFI_LOST ? "wifi" : e.kind == RADIO_REVERTED ? "radio" : "restart",
              e.reason, e.seconds, e.rssi);
     s += line;
   }

@@ -153,6 +153,7 @@ class HistoryScreen:
         self.pres = Chart("Air pressure", lambda v: f"{v:.0f} hPa", min_span=4)
         self.light = Chart("Light", lambda v: f"{v:.1f} lx" if v < 10 else f"{v:.0f} lx", ymap=history.light_y,
                            floor=0)
+        self.chip = Chart("The display's chip", deg)  # firmware 0.9.0
         self.bright = Chart("Display brightness", lambda v: f"{v:.1f} of 15" if v % 1 else f"{v:.0f} of 15",
                             floor=0)
         self.view = ft.View(
@@ -162,6 +163,7 @@ class HistoryScreen:
             controls=[ft.Column([
                 self.picker, self.status,
                 ft.Column([self.temp, self.temp_key], spacing=2), self.hum, self.pres, self.light, self.bright,
+                self.chip,
                 self.ev_section,
                 muted("Touch a chart to read it. The display keeps 30 days; the phone keeps every "
                       "day it has fetched, from the first time you opened this page.", 12),
@@ -227,12 +229,16 @@ class HistoryScreen:
         self.pres.set([(history.thin(rows, "pressure_hpa"), PURPLE, "")], start, now)
         self.light.set([(history.thin(rows, "lux"), GOLD, "")], start, now)
         self.bright.set([(history.thin(rows, "brightness"), GREEN, "")], start, now)
+        chip = c2(history.thin(rows, "chip_c"))
+        self.chip.visible = bool(chip)  # only once the display logs it
+        self.chip.set([(chip, ORANGE, "")], start, now)
         evs = [e for e in self.events.events if start <= e["t"] <= now]
         self.ev_summary.value = history.summary(evs)
         lines = []
         for e in reversed(evs[-50:]):
             text, odd = history.describe(e)
-            icon = ft.Icons.WIFI_OFF if e["kind"] == "wifi" else ft.Icons.RESTART_ALT
+            icon = {"wifi": ft.Icons.WIFI_OFF, "radio": ft.Icons.SETTINGS_BACKUP_RESTORE}.get(e["kind"],
+                                                                                         ft.Icons.RESTART_ALT)
             colour = ORANGE if odd else ft.Colors.ON_SURFACE_VARIANT
             lines.append(ft.Row([ft.Icon(icon, size=16, color=colour),
                                  muted(time.strftime("%a %H:%M", time.localtime(e["t"])), 13),

@@ -38,8 +38,10 @@ async def main(page: ft.Page):
     if os.getenv("DM_HOST"):
         app.library.prefs["host"] = os.getenv("DM_HOST")
 
-    tabs: list = [HomeTab(app, open_settings=lambda: select(SETTINGS)), TextsTab(app), ClockTab(app, open_settings=lambda: select(SETTINGS)),
-                  ToolsTab(app), SettingsTab(app)]
+    settings_tab = SettingsTab(app)
+    tabs: list = [HomeTab(app, open_settings=lambda: select(SETTINGS),
+                          open_brightness=lambda: settings_tab.open("brightness")),
+                  TextsTab(app), ClockTab(app, open_settings=lambda: settings_tab.open("location")), ToolsTab(app), settings_tab]
     current = {"tab": 0, "asked_exit": None}  # the tab showing; when Back last said "again to exit"
 
     # The app's name stays at the top on every tab, with the connection as one dim line under it.

@@ -6,7 +6,9 @@
 // (and why). The last 100, kept in flash. Served at /api/events.
 namespace EventLog {
 
-enum Kind : uint8_t { WIFI_LOST = 1, RESTART = 2 };
+// RADIO_REVERTED (0.9.0): a Wi-Fi power/sleep change lost the Wi-Fi, so the last
+// good one came back; reason = its power in 1/4 dBm, seconds = sleep (0/1).
+enum Kind : uint8_t { WIFI_LOST = 1, RESTART = 2, RADIO_REVERTED = 3 };
 
 // Why the display restarted. Ours (update, app, Wi-Fi settings) are noted in
 // memory that survives the restart; the rest come from the chip.

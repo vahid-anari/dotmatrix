@@ -1,13 +1,12 @@
-"""Clock: how the time looks, the date, the weather and the room that pass by now and then,
-and dimming at night."""
-import datetime as dt
+"""Clock: how the time looks, and the date, the weather and the room that pass by
+now and then. (Dimming at night moved to Settings → Brightness in 0.9.0.)"""
 import time
 
 import flet as ft
 
 from core import preview, weather
 
-from .widgets import Debouncer, LabeledSlider, bottom_room, led, muted, section
+from .widgets import LabeledSlider, bottom_room, led, muted, section
 
 EVERY = [(0, "Never"), (10, "Every 10 seconds"), (20, "Every 20 seconds"), (30, "Every 30 seconds"),
          (60, "Every minute"), (300, "Every 5 minutes")]
@@ -19,7 +18,6 @@ class ClockTab:
         self.app = app
         self.open_settings = open_settings
         self._touched = 0.0
-        self._send_brightness = Debouncer(app.page, 0.3, self._night_brightness)
 
         self.led = led(preview.render_text(""), radius=12)
         self.show_btn = ft.FilledButton("Show the clock now", icon=ft.Icons.SCHEDULE, on_click=self._show_clock)
@@ -48,7 +46,7 @@ class ClockTab:
                                on_select=lambda e: self._clock(date_format=e.control.value))
         self.w_place = ft.Text("", size=15)
         self.w_now = muted("", 14)
-        self.w_choose = ft.TextButton("Change the location in Settings", icon=ft.Icons.PLACE,
+        self.w_choose = ft.TextButton("Change the location", icon=ft.Icons.PLACE,
                                       on_click=lambda e: self.open_settings and self.open_settings())
         self.w_units = ft.SegmentedButton(
             segments=[ft.Segment(value="c", label="°C"), ft.Segment(value="f", label="°F")],
@@ -57,31 +55,16 @@ class ClockTab:
         self.w_old = muted("Update the display's firmware (Settings → Updates) to show the weather.", 14)
         self.w_rows = ft.Column([self.w_place, self.w_now, ft.Row([self.w_units]), self.w_choose],
                                 spacing=10)
-        self.night = ft.Switch(label="Dim at night", on_change=lambda e: self._set_night(enabled=e.control.value))
-        self.from_btn = ft.OutlinedButton("23:00", icon=ft.Icons.BEDTIME, on_click=lambda e: self._pick("from"))
-        self.to_btn = ft.OutlinedButton("07:00", icon=ft.Icons.WB_SUNNY, on_click=lambda e: self._pick("to"))
-        self.night_b = LabeledSlider("Brightness at night", 1, 0, 15, 1,
-                                     lambda v: f"{int(v)} of 15" + (" (dimmest)" if v == 0 else ""),
-                                     lambda v: self._send_brightness(int(v)))
-        self.night_rows = ft.Column([
-            ft.Row([ft.Column([muted("From", 14), self.from_btn], spacing=4),
-                    ft.Column([muted("Until", 14), self.to_btn], spacing=4)], spacing=24),
-            self.night_b,
-        ], spacing=14)
-
         self.view = ft.Column([
             self.led,
             self.show_btn,
             section("Time", self.h24, self.secs),
             section("Date and weather", self.show_date, self.show_weather, self.show_indoor, ft.Row([self.every]),
                     ft.Row([self.style], scroll=ft.ScrollMode.AUTO), self.style_old, self.pause,
-                    note="Now and then the time makes way for them, one after the other: "
-                         "first the date, then the weather, then the room."),
-            section("Date", ft.Row([self.fmt])),
-            section("Weather", self.w_old, self.w_rows,
-                    note="The display fetches it from Open-Meteo every 15 minutes."),
-            section("Night", self.night, self.night_rows,
-                    note="Lowers the brightness during these hours, in every mode."),
+                    ft.Row([self.fmt]), self.w_old, self.w_rows,
+                    note="Now and then the time makes way for them, one after the other: first the "
+                         "date, then the weather, then the room. The weather comes from Open-Meteo "
+                         "every 15 minutes."),
             bottom_room(),
         ], spacing=18, scroll=ft.ScrollMode.AUTO, expand=True)
         self.refresh()
@@ -89,9 +72,8 @@ class ClockTab:
     def refresh(self):
         d = self.app.device
         on = d.connected
-        for c in (self.show_btn, self.h24, self.secs, self.every, self.fmt, self.night, self.show_date,
-                  self.show_weather, self.show_indoor, self.style, self.pause.slider,
-                  self.from_btn, self.to_btn, self.night_b.slider, self.w_choose, self.w_units):
+        for c in (self.show_btn, self.h24, self.secs, self.every, self.fmt, self.show_date,
+                  self.show_weather, self.show_indoor, self.style, self.pause.slider, self.w_choose, self.w_units):
             c.disabled = not on
         # Firmware from before 0.4 has no weather (its settings don't mention it).
         has_weather = not d.settings or "weather" in d.settings
@@ -112,7 +94,6 @@ class ClockTab:
         if time.monotonic() - self._touched < 2:
             return  # don't fight the user's finger
         c = d.settings.get("clock", {})
-        n = d.settings.get("night", {})
         self.h24.value = c.get("format_24h", True)
         self.secs.value = c.get("seconds", True)
         x = extras_from(c)
@@ -127,11 +108,6 @@ class ClockTab:
         self.pause.visible = new_fw and c.get("extras_style", "drop") == "drop"
         self.fmt.value = c.get("date_format", DATE_FORMATS[0])
         self.w_units.selected = [w.get("units", "c")]
-        self.night.value = n.get("enabled", False)
-        self.from_btn.content = n.get("from", "23:00")
-        self.to_btn.content = n.get("to", "07:00")
-        self.night_b.set(n.get("brightness", 1))
-        self.night_rows.visible = bool(self.night.value)
         self.tick()
 
     def tick(self):
@@ -169,34 +145,8 @@ class ClockTab:
         self._touched = time.monotonic()
         self.app.run(self.app.device.update_settings, weather=changes)
 
-    def _set_night(self, **changes):
-        self._touched = time.monotonic()
-        if "enabled" in changes:
-            self.night_rows.visible = changes["enabled"]
-            self.night_rows.update()
-        self.app.run(self.app.device.update_settings, night=changes)
-
-    async def _night_brightness(self, v):
-        self._touched = time.monotonic()
-        await self.app.device.update_settings(night={"brightness": v})
-
     def _show_clock(self, e):
         self.app.run(self.app.device.request, "set_mode", mode="clock", ok="Showing the clock")
-
-    def _pick(self, which: str):
-        btn = self.from_btn if which == "from" else self.to_btn
-        h, m = (int(x) for x in str(btn.content).split(":"))
-
-        def chosen(e):
-            v = e.control.value
-            if v:
-                text = f"{v.hour:02d}:{v.minute:02d}"
-                btn.content = text
-                btn.update()
-                self._set_night(**{which: text})
-
-        self.app.page.show_dialog(ft.TimePicker(value=dt.time(h, m), on_change=chosen,
-                                                help_text="Dim from" if which == "from" else "Dim until"))
 
 
 def extras_from(clock: dict) -> dict:

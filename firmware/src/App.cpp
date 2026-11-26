@@ -1,5 +1,6 @@
 #include "App.h"
 
+#include <LittleFS.h>
 #include <WiFi.h>
 #include <esp_ota_ops.h>
 #include <esp_system.h>
@@ -156,8 +157,20 @@ void App::loop() {
   }
 
   sensors.loop(now);
+  readChip(now);
   logSensors();
   SensorLog::loop(now);
+  {
+    uint8_t tx;
+    bool sl;
+    if (network.radioReverted(tx, sl)) {  // the new radio setting lost the Wi-Fi
+      settings.radio.txQ = tx;
+      settings.radio.sleep = sl;
+      markDirty(true, false);
+      sendSettings(0);
+      EventLog::add(time(nullptr), EventLog::RADIO_REVERTED, tx, sl, 0);
+    }
+  }
   checkBrightness(now);
   saveIfDue(now);
   updateLed();
@@ -269,6 +282,19 @@ void App::updateNotice() {
 // ---------------------------------------------------------------- Sensor log
 
 // One row a minute, on the minute, while the clock is set and a sensor answers.
+// The ESP32's own temperature (since 0.9.0): the chip, not the room; it runs
+// well above the room with the radio on. Read every 5 s, the lowest and highest
+// kept since the start.
+void App::readChip(uint32_t now) {
+  if (_lastChip && now - _lastChip < 5000) return;
+  _lastChip = now ? now : 1;
+  float c = temperatureRead();
+  if (isnan(c) || c < -40 || c > 125) return;
+  _chipC = c;
+  if (isnan(_chipMin) || c < _chipMin) _chipMin = c;
+  if (isnan(_chipMax) || c > _chipMax) _chipMax = c;
+}
+
 void App::logSensors() {
   if (!timeValid() || !(sensors.lightValid() || sensors.climateValid())) return;
   time_t t = time(nullptr);
@@ -290,6 +316,7 @@ void App::logSensors() {
   }
   r.brightness = display.power() ? display.brightness() : 0xFF;
   r.mode = SensorLog::modeIndex(_mode ? _mode->id() : "");
+  r.chipC = isnan(_chipC) ? INT8_MIN : (int8_t)lroundf(_chipC);
   SensorLog::add(r);
 }
 
@@ -474,6 +501,15 @@ void App::fillState(JsonDocument& doc) {
   doc["uptime"] = millis() / 1000;
   doc["free_heap"] = ESP.getFreeHeap();
   doc["min_free_heap"] = ESP.getMinFreeHeap();
+  doc["heap_size"] = ESP.getHeapSize();  // since 0.9.0, with the chip and storage below
+  doc["fs_used"] = LittleFS.usedBytes();
+  doc["fs_total"] = LittleFS.totalBytes();
+  if (!isnan(_chipC)) {
+    JsonObject chip = doc["chip"].to<JsonObject>();
+    chip["c"] = roundf(_chipC * 10) / 10.0;
+    chip["min"] = roundf(_chipMin * 10) / 10.0;
+    chip["max"] = roundf(_chipMax * 10) / 10.0;
+  }
   doc["last_reset"] = _resetReason;
   uint32_t now = millis();
   JsonObject sw = doc["stopwatch"].to<JsonObject>();
@@ -638,6 +674,7 @@ void App::handleMessage(uint32_t client, const char* data, size_t len) {
     strlcpy(settings.mode, before.mode, sizeof(settings.mode));  // use set_mode for that
     if (strcmp(before.timezone, settings.timezone) != 0) network.applyTimezone(settings.timezone);
     if (strcmp(before.hostname, settings.hostname) != 0) network.applyHostname(settings.hostname);
+    network.applyRadio(settings.radio.txQ, settings.radio.sleep);  // no-op when unchanged
     if (strcmp(before.weather.place, settings.weather.place) || before.weather.lat != settings.weather.lat ||
         before.weather.lon != settings.weather.lon || before.weather.fahrenheit != settings.weather.fahrenheit ||
         strcmp(before.weather.country, settings.weather.country))

@@ -22,6 +22,7 @@ struct __attribute__((packed)) Row {
   int16_t outdoor10;  // 1/10 °C outside; INT16_MIN = none
   uint8_t brightness; // 0..15 as shown (a quarter: the average); 0xFF = display off
   uint8_t mode;       // index into modeNames()
+  int8_t chipC;       // the ESP32's own temperature, whole °C; INT8_MIN = none (since 0.9.0)
 };
 
 constexpr uint32_t EVERY_S = 60;

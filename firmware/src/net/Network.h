@@ -28,6 +28,11 @@ class Network {
 
   void applyTimezone(const char* tz);
   void applyHostname(const char* hostname);
+  // Transmit power (1/4 dBm) and modem sleep, applied now. If the Wi-Fi is lost
+  // and doesn't come back within a minute, the previous ones come back and
+  // radioReverted() says so once (the app then saves them).
+  void applyRadio(uint8_t txQ, bool sleep);
+  bool radioReverted(uint8_t& txQ, bool& sleep);
 
  private:
   State _state = State::Setup;
@@ -43,6 +48,13 @@ class Network {
   int8_t _lostRssi = 0, _lastRssi = 0;  // dBm
   uint32_t _lastRssiAt = 0;
   bool _haveCredentials = false;
+  uint8_t _txQ = WIFI_TX_POWER, _prevTxQ = WIFI_TX_POWER;
+  bool _sleep = false, _prevSleep = false;
+  uint32_t _radioTrialAt = 0;  // millis() of a change on trial, 0 = none
+  bool _bootTrial = false;     // non-default radio at start, not yet proven
+  bool _reverted = false;
+  void setRadio();
+  void checkRadio(uint32_t now, bool connected);
   String _ssid, _pass;
   void (*_onOnline)() = nullptr;
 

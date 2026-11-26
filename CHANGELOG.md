@@ -4,6 +4,25 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.9.0 — 2026-11-26
+
+- Settings is a short list now; each entry opens its own page, with a line under
+  its name saying how things stand: Connection, Brightness, Display, Location,
+  Your texts, Appearance, Updates, About.
+- Brightness has its own page: automatic brightness (on/off, its two levels and
+  two lights, the instant test mode) and dimming at night, which moved here from
+  Clock. Home keeps the everyday part: Automatic on or off, the level, and a link.
+- Display page: address, Wi-Fi signal, how long it has run, firmware, and new:
+  the chip's own temperature (now, lowest and highest since the start), free
+  memory, and how much storage is used. The same page sets the Wi-Fi transmit
+  power (8.5 to 19.5 dBm) and lets the radio doze, or not; if a change loses the
+  Wi-Fi for a minute, the display goes back to what worked and notes it in
+  History → Events. Its name, moving it to another Wi-Fi and restarting it are
+  here too (they were in Settings, the address and signal on Home).
+- History shows the chip's temperature over time; the display logs it with the
+  other readings (the old logs are converted on the first start).
+- Clock: the date style and the weather join "Date and weather" in one section.
+
 ## 0.8.8 — 2026-11-21
 
 - A switch that's off is now visible: its knob and edge were the same grey as the

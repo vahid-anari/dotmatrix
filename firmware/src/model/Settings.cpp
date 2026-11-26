@@ -131,6 +131,20 @@ bool settingsUpdate(Settings& s, JsonObjectConst o, const char*& err) {
       (strcmp(k, "dark") == 0 ? n.autoBrightness.dark : n.autoBrightness.bright) = b;
     }
   }
+  JsonObjectConst ra = o["radio"];
+  if (!ra.isNull()) {
+    if (ra["sleep"].is<bool>()) n.radio.sleep = ra["sleep"];
+    if (jsonIsNumber(ra["tx_power"])) {
+      // dBm; the radio's own steps (8.5 … 19.5), the nearest one
+      static const uint8_t STEPS[] = {34, 44, 52, 60, 68, 74, 78};
+      float want = (float)ra["tx_power"].as<float>() * 4;
+      if (want < 30 || want > 82) return err = "radio.tx_power must be 8.5-19.5 dBm", false;
+      uint8_t best = STEPS[0];
+      for (uint8_t s : STEPS)
+        if (fabsf(s - want) < fabsf(best - want)) best = s;
+      n.radio.txQ = best;
+    }
+  }
   JsonObjectConst nt = o["night"];
   if (!nt.isNull()) {
     if (nt["enabled"].is<bool>()) n.night.enabled = nt["enabled"];
@@ -187,6 +201,9 @@ void settingsToJson(const Settings& s, JsonObject o) {
   ab["instant"] = s.autoBrightness.instant;  // since 0.8.6
   ab["lux_low"] = s.autoBrightness.luxLow;
   ab["lux_high"] = s.autoBrightness.luxHigh;
+  JsonObject ra = o["radio"].to<JsonObject>();  // since 0.9.0
+  ra["tx_power"] = s.radio.txQ / 4.0;
+  ra["sleep"] = s.radio.sleep;
   JsonObject n = o["night"].to<JsonObject>();
   n["enabled"] = s.night.enabled;
   formatHHMM(s.night.from, buf, sizeof(buf));

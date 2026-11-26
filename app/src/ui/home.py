@@ -103,8 +103,9 @@ class ConnectionLine(ft.Row):
 
 
 class HomeTab:
-    def __init__(self, app, open_settings):
+    def __init__(self, app, open_settings, open_brightness=None):
         self.app = app
+        self.open_brightness = open_brightness
         self._brightness_touched = 0.0
         self._showing_message = False
 
@@ -126,27 +127,12 @@ class HomeTab:
         # Automatic brightness (firmware 0.8, with a light sensor): the level
         # slider is then only a gauge, and these two set the ends of the range.
         self.auto = ft.Switch(label="Automatic, from the room's light", on_change=self._auto_changed)
-        self.auto_dark = LabeledSlider("In the dark", 0, 0, 15, 1, lambda v: f"{int(v)} of 15",
-                                       lambda v: self._auto_level(dark=int(v)), self._brightness_released)
-        self.auto_bright = LabeledSlider("With the lights on", 2, 0, 15, 1, lambda v: f"{int(v)} of 15",
-                                         lambda v: self._auto_level(bright=int(v)), self._brightness_released)
-        # Instant (firmware 0.8.6): no smoothing, so a test shows at once.
-        self.auto_instant = ft.Switch(label="Follow the light instantly (for testing)",
-                                      on_change=self._auto_instant_changed)
-        # The light that counts as dark and as bright (firmware 0.8.6); between them a log scale.
-        # Typed numbers (0.8.8; dropdowns before), sent on Enter or on leaving the field.
-        lux_field = lambda label: ft.TextField(
-            label=label, suffix="lx", expand=True, keyboard_type=ft.KeyboardType.NUMBER,
-            input_filter=ft.InputFilter(regex_string=r"^[0-9]*[.]?[0-9]*$", allow=True, replacement_string=""),
-            on_submit=self._lux_entered, on_blur=self._lux_entered)
-        self.lux_low = lux_field("Dark is below")
-        self.lux_high = lux_field("Bright is above")
-        self.lux_range = ft.Row([self.lux_low, self.lux_high], spacing=12)
-        self.auto_rows = ft.Column([self.auto_dark, self.auto_bright, self.lux_range, self.auto_instant], spacing=10)
+        # The rest (range, lux, night) lives in Settings → Brightness (0.9.0).
+        self.more_btn = ft.TextButton("Brightness settings", icon=ft.Icons.TUNE,
+                                      on_click=lambda e: self.open_brightness and self.open_brightness())
         self.message = ft.TextField(hint_text="Type a message", expand=True, dense=True,
                                     max_length=128, counter="", on_submit=self._show_message)
         self.message_btn = ft.FilledButton("Show", icon=ft.Icons.PLAY_ARROW, on_click=self._show_message)
-        self.facts = ft.Column(spacing=6)
         self.room = ft.Column(spacing=6)
         self.launcher = ft.UrlLauncher()
         self.log_btn = ft.TextButton("Download the last two days (CSV)", icon=ft.Icons.DOWNLOAD,
@@ -162,12 +148,11 @@ class HomeTab:
             self.now_caption,
             ft.Container(height=4),
             section("Show", self.modes),
-            section("Brightness", self.auto, self.brightness, self.auto_rows, self.night_note),
+            section("Brightness", self.auto, self.brightness, self.night_note, self.more_btn),
             section("Quick message", ft.Row([self.message, self.message_btn],
                                             vertical_alignment=ft.CrossAxisAlignment.START),
                     note="Scrolls across the display until you stop it."),
             self.room_section,
-            section("This display", self.facts),
             bottom_room(),
         ], spacing=18, scroll=ft.ScrollMode.AUTO, expand=True)
         self.refresh()
@@ -187,10 +172,9 @@ class HomeTab:
         auto_on = bool(ab and ab.get("enabled"))
         self.auto.visible = ab is not None and (has_light or auto_on)
         self.auto.value = auto_on
-        self.auto_rows.visible = self.auto.visible and auto_on
-        for c in (self.modes, self.message, self.message_btn, self.auto,
-                  self.auto_dark.slider, self.auto_bright.slider):
+        for c in (self.modes, self.message, self.message_btn, self.auto):
             c.disabled = not on
+        self.brightness.label.value = "Level now" if auto_on else "Level"
         self.brightness.slider.disabled = not on or auto_on
 
         mode = st.get("mode", "text")
@@ -201,18 +185,6 @@ class HomeTab:
             # With automatic brightness the slider shows what the display chose.
             self.brightness.set(st.get("brightness", 6) if auto_on else
                                 d.settings.get("brightness", st.get("brightness", 6)))
-            if ab:
-                self.auto_dark.set(ab.get("dark", 0))
-                self.auto_bright.set(ab.get("bright", 2))
-        self.lux_range.visible = bool(ab) and "lux_low" in ab
-        if self.lux_range.visible:
-            for field, key in ((self.lux_low, "lux_low"), (self.lux_high, "lux_high")):
-                if not field.error:  # keep what's being corrected
-                    field.value = lux_text(ab[key])
-            self.lux_low.disabled = self.lux_high.disabled = not on
-        self.auto_instant.visible = bool(ab) and "instant" in ab
-        self.auto_instant.value = bool(ab and ab.get("instant"))
-        self.auto_instant.disabled = not on
         night = on and bool(st.get("night"))
         self.night_note.value = "Dimmed for the night right now." if night else ""
         self.night_note.visible = night
@@ -221,17 +193,6 @@ class HomeTab:
         self.message_btn.icon = ft.Icons.STOP if self.message_btn.content == "Stop" else ft.Icons.PLAY_ARROW
         if not st.get("previewing"):
             self._showing_message = False
-
-        rows = []
-        if on:
-            rows = [("Address", d.host), ("Wi-Fi signal", signal_words(st.get("rssi", 0))),
-                    ("Running for", uptime_words(st.get("uptime", 0))),
-                    ("Firmware", d.hello.get("fw", "–"))]
-        else:
-            rows = [("Address", d.host or "–")]
-        self.facts.controls = [
-            ft.Row([muted(k, 14), ft.Text(v, size=14)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
-            for k, v in rows]
 
         sensors = st.get("sensors") if on else None
         self.room_section.visible = bool(sensors)
@@ -319,28 +280,9 @@ class HomeTab:
     def _auto_changed(self, e):
         self._brightness_touched = time.monotonic()
         on = bool(e.control.value)
-        self.auto_rows.visible = on
         self.brightness.slider.disabled = on
         self.view.update()
         self.app.device.send("set_settings", settings={"auto_brightness": {"enabled": on}})
-
-    def _auto_level(self, **level):
-        self._brightness_touched = time.monotonic()
-        self.app.device.send("set_settings", settings={"auto_brightness": level})
-
-    def _lux_entered(self, e):
-        lo_err, hi_err = lux_range_error(self.lux_low.value or "", self.lux_high.value or "")
-        self.lux_low.error, self.lux_high.error = lo_err, hi_err
-        self.lux_range.update()
-        if lo_err or hi_err:
-            return
-        ab = self.app.device.settings.get("auto_brightness", {})
-        lo, hi = float(self.lux_low.value), float(self.lux_high.value)
-        if (lo, hi) != (ab.get("lux_low"), ab.get("lux_high")):
-            self._auto_level(lux_low=lo, lux_high=hi)
-
-    def _auto_instant_changed(self, e):
-        self.app.device.send("set_settings", settings={"auto_brightness": {"instant": bool(e.control.value)}})
 
     def _brightness_released(self, e):
         self._brightness_touched = time.monotonic()

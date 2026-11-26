@@ -61,6 +61,7 @@ settings = {
     "auto_brightness": {"enabled": False, "dark": 0, "bright": 2, "instant": False, "lux_low": 0.1, "lux_high": 40.0},
     "weather": {"place": "Toronto, Ontario, Canada", "lat": 43.65, "lon": -79.38, "units": "c"},
     "night": {"enabled": False, "from": "23:00", "to": "07:00", "brightness": 1},
+    "radio": {"tx_power": 8.5, "sleep": False},
 }
 
 
@@ -132,6 +133,10 @@ def state_msg():
         "rssi": -52,
         "uptime": int(time.monotonic() - START),
         "free_heap": 154000,
+        "heap_size": 280000,
+        "fs_used": 118784,
+        "fs_total": 196608,
+        "chip": {"c": round(47 + math.sin(time.time() / 60), 1), "min": 41.2, "max": 49.8},
         "min_free_heap": 148000,
         "last_reset": "power_on",
         "stopwatch": {"ms": stopwatch.elapsed(), "running": stopwatch.running},
@@ -156,7 +161,7 @@ def fake_rows(res: int, since: int, human: bool) -> str:
     end = int(time.time()) // step * step
     start = end - (30 * 86400 if res == 15 else 2 * 86400)
     rows = ["time" if human else "t"]
-    rows[0] += ",lux,temp_c,humidity,pressure_hpa,outdoor_c,brightness,mode"
+    rows[0] += ",lux,temp_c,humidity,pressure_hpa,outdoor_c,brightness,mode,chip_c"
     for t in range(start, end, step):
         if t <= since:
             continue
@@ -170,7 +175,8 @@ def fake_rows(res: int, since: int, human: bool) -> str:
         out = 6 + 5 * day + 2 * math.sin(t / 500000)
         bright = 0 if lux < 0.5 else (1 if lux < 20 else 2)
         stamp = time.strftime("%Y-%m-%d %H:%M", lt) if human else str(t)
-        rows.append(f"{stamp},{lux},{temp:.2f},{hum:.1f},{pres:.1f},{out:.1f},{bright},clock")
+        chip = round(temp + 20 + 2 * bright)
+        rows.append(f"{stamp},{lux},{temp:.2f},{hum:.1f},{pres:.1f},{out:.1f},{bright},clock,{chip}")
     return "\n".join(rows) + "\n"
 
 

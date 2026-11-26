@@ -21,6 +21,12 @@ static DNSServer dns;
 void Network::begin(const Settings& settings) {
   strlcpy(_hostname, settings.hostname, sizeof(_hostname));
   strlcpy(_timezone, settings.timezone, sizeof(_timezone));
+  _txQ = settings.radio.txQ;
+  _sleep = settings.radio.sleep;
+  // Not the defaults: on trial until the Wi-Fi joins once with them.
+  _bootTrial = _txQ != WIFI_TX_POWER || _sleep;
+  _prevTxQ = WIFI_TX_POWER;
+  _prevSleep = false;
 
   uint8_t mac[6];
   esp_read_mac(mac, ESP_MAC_WIFI_STA);  // works before Wi-Fi is started
@@ -35,10 +41,9 @@ void Network::begin(const Settings& settings) {
   _haveCredentials = Storage::loadWifi(_ssid, _pass);
   if (_haveCredentials) {
     WiFi.mode(WIFI_STA);
-    // Radio always awake: with the display's leftover noise, dozing between the
+    // Awake by default: with the display's leftover noise, dozing between the
     // router's beacons made it miss them and drop (tested in 0.8.4).
-    WiFi.setSleep(false);
-    WiFi.setTxPower((wifi_power_t)WIFI_TX_POWER);
+    setRadio();
     WiFi.begin(_ssid.c_str(), _pass.c_str());
     _state = State::Connecting;
     _connectStart = millis();
@@ -63,8 +68,8 @@ void Network::startAP() {
     WiFi.disconnect(false);
   }
   WiFi.mode(_haveCredentials ? WIFI_AP_STA : WIFI_AP);
-  WiFi.setSleep(false);
-  WiFi.setTxPower((wifi_power_t)WIFI_TX_POWER);
+  WiFi.setSleep(false);  // an access point can't doze
+  WiFi.setTxPower((wifi_power_t)_txQ);
   WiFi.softAP(_apName, SETUP_AP_PASSWORD);
   dns.start(53, "*", WiFi.softAPIP());  // captive portal: every name → us
   _apActive = true;
@@ -77,9 +82,9 @@ void Network::stopAP() {
   dns.stop();
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
-  WiFi.setAutoReconnect(true);
   _apActive = false;
+  setRadio();
+  WiFi.setAutoReconnect(true);
   LOG("wifi: setup AP stopped");
 }
 
@@ -141,6 +146,7 @@ void Network::loop() {
   if (_servicesUp) ArduinoOTA.handle();
 
   bool connected = WiFi.status() == WL_CONNECTED;
+  checkRadio(now, connected);
 
   switch (_state) {
     case State::Connecting:
@@ -210,6 +216,62 @@ String Network::ip() const {
 }
 
 int Network::rssi() const { return _state == State::Online ? WiFi.RSSI() : 0; }
+
+void Network::setRadio() {
+  WiFi.setTxPower((wifi_power_t)_txQ);
+  WiFi.setSleep(_apActive ? false : _sleep);
+}
+
+void Network::applyRadio(uint8_t txQ, bool sleep) {
+  if (txQ == _txQ && sleep == _sleep) return;
+  if (!_radioTrialAt && !_bootTrial) {  // the last proven ones, to go back to
+    _prevTxQ = _txQ;
+    _prevSleep = _sleep;
+  }
+  _txQ = txQ;
+  _sleep = sleep;
+  setRadio();
+  _radioTrialAt = millis() ? millis() : 1;
+  LOG("wifi: radio %.2f dBm, sleep %s (on trial)", txQ / 4.0, sleep ? "on" : "off");
+}
+
+// A new radio setting stays if the Wi-Fi is up a minute after it; if the Wi-Fi
+// is down for a whole minute meanwhile (or never joins after a start with it),
+// the last good one comes back.
+void Network::checkRadio(uint32_t now, bool connected) {
+  if (!_radioTrialAt && !_bootTrial) return;
+  static uint32_t downSince = 0;
+  if (connected) {
+    downSince = 0;
+    if (_bootTrial || now - _radioTrialAt >= 60000) {
+      _bootTrial = false;
+      _radioTrialAt = 0;
+      LOG("wifi: radio setting kept");
+    }
+    return;
+  }
+  if (!downSince) downSince = now ? now : 1;
+  if (now - downSince < 60000 || !_haveCredentials) return;
+  LOG("wifi: no connection with the new radio setting; back to %.2f dBm, sleep %s", _prevTxQ / 4.0,
+      _prevSleep ? "on" : "off");
+  _txQ = _prevTxQ;
+  _sleep = _prevSleep;
+  _radioTrialAt = 0;
+  _bootTrial = false;
+  _reverted = true;
+  downSince = 0;
+  setRadio();
+  WiFi.disconnect(false);
+  WiFi.begin(_ssid.c_str(), _pass.c_str());
+}
+
+bool Network::radioReverted(uint8_t& txQ, bool& sleep) {
+  if (!_reverted) return false;
+  _reverted = false;
+  txQ = _txQ;
+  sleep = _sleep;
+  return true;
+}
 
 void Network::applyTimezone(const char* tz) {
   strlcpy(_timezone, tz, sizeof(_timezone));

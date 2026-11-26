@@ -11,8 +11,28 @@ namespace {
 
 constexpr const char* PATH = "/sensorlog.bin";    // the minutes
 constexpr const char* QPATH = "/sensorlog15.bin";  // the quarters: header, then QUARTERS slots
-constexpr uint32_t MAGIC = 0x534C4F31;   // "SLO1"
-constexpr uint32_t QMAGIC = 0x534C5131;  // "SLQ1"
+constexpr uint32_t MAGIC = 0x534C4F32;   // "SLO2" (0.9.0: rows gained chipC)
+constexpr uint32_t QMAGIC = 0x534C5132;  // "SLQ2"
+constexpr uint32_t MAGIC1 = 0x534C4F31, QMAGIC1 = 0x534C5131;  // before 0.9.0, converted on start
+constexpr const char* QTMP = "/sensorlog15.tmp";
+
+// A row as 0.6 to 0.8 wrote it (no chip temperature).
+struct __attribute__((packed)) Row1 {
+  uint32_t time;
+  float lux;
+  int16_t temp100;
+  uint16_t hum100;
+  uint16_t pres10;
+  int16_t outdoor10;
+  uint8_t brightness;
+  uint8_t mode;
+};
+Row fromRow1(const Row1& o) {
+  Row r;
+  memcpy(&r, &o, sizeof(Row1));
+  r.chipC = INT8_MIN;
+  return r;
+}
 constexpr uint32_t SAVE_EVERY_MS = 10UL * 60 * 1000;
 const char* const MODES[] = {"off", "text", "clock", "stopwatch", "timer", "other"};
 
@@ -27,9 +47,9 @@ uint32_t qHead = 0, qCount = 0;  // the quarters' ring, in the file
 struct Acc {
   uint32_t start = 0;
   float lux = 0;
-  int32_t temp = 0, hum = 0, pres = 0, outdoor = 0;
+  int32_t temp = 0, hum = 0, pres = 0, outdoor = 0, chip = 0;
   uint32_t bright = 0;
-  uint16_t nLux = 0, nTemp = 0, nHum = 0, nPres = 0, nOut = 0, nOn = 0, nRows = 0;
+  uint16_t nLux = 0, nTemp = 0, nHum = 0, nPres = 0, nOut = 0, nOn = 0, nRows = 0, nChip = 0;
   uint8_t mode = 0;
 } acc;
 
@@ -48,7 +68,42 @@ void save() {
   dirty = false;
 }
 
+// The quarters file from before 0.9.0, rewritten oldest first with the new rows.
+// If there's no room for the copy, the display's quarters start again (the phone
+// keeps its own copy of everything it fetched).
+void qConvert() {
+  File f = LittleFS.open(QPATH, "r");
+  uint32_t hdr[3];
+  if (!f || f.read((uint8_t*)hdr, sizeof(hdr)) != sizeof(hdr) || hdr[0] != QMAGIC1) {
+    if (f) f.close();
+    return;
+  }
+  uint32_t oldHead = hdr[1] % QUARTERS, cnt = min<uint32_t>(hdr[2], QUARTERS);
+  File o = LittleFS.open(QTMP, "w");
+  uint32_t nh[3] = {QMAGIC, cnt % QUARTERS, cnt};
+  bool ok = o && o.write((uint8_t*)nh, sizeof(nh)) == sizeof(nh);
+  for (uint32_t i = 0; ok && i < cnt; i++) {
+    Row1 r1;
+    uint32_t slot = (oldHead + QUARTERS - cnt + i) % QUARTERS;
+    ok = f.seek(sizeof(hdr) + slot * sizeof(Row1)) && f.read((uint8_t*)&r1, sizeof(Row1)) == sizeof(Row1);
+    Row r = fromRow1(r1);
+    ok = ok && o.write((const uint8_t*)&r, sizeof(Row)) == sizeof(Row);
+  }
+  f.close();
+  if (o) o.close();
+  LittleFS.remove(QPATH);
+  if (ok) {
+    LittleFS.rename(QTMP, QPATH);
+    LOG("sensorlog: %u quarter hours converted", (unsigned)cnt);
+  } else {
+    LittleFS.remove(QTMP);
+    LOG("sensorlog: quarters couldn't be converted; starting again");
+  }
+}
+
 void qOpen() {
+  LittleFS.remove(QTMP);  // a conversion cut short
+  qConvert();
   File f = LittleFS.open(QPATH, "r");
   uint32_t hdr[3];
   if (f && f.read((uint8_t*)hdr, sizeof(hdr)) == sizeof(hdr) && hdr[0] == QMAGIC && hdr[1] < QUARTERS &&
@@ -95,6 +150,7 @@ void flushQuarter() {
   q.outdoor10 = acc.nOut ? (int16_t)(acc.outdoor / acc.nOut) : INT16_MIN;
   q.brightness = acc.nOn * 2 >= acc.nRows ? (uint8_t)lroundf((float)acc.bright / acc.nOn) : 0xFF;
   q.mode = acc.mode;
+  q.chipC = acc.nChip ? (int8_t)lroundf((float)acc.chip / acc.nChip) : INT8_MIN;
   qAppend(q);
   acc = Acc();
 }
@@ -110,15 +166,16 @@ void collect(const Row& r) {
   if (r.pres10 != 0xFFFF) acc.pres += r.pres10, acc.nPres++;
   if (r.outdoor10 != INT16_MIN) acc.outdoor += r.outdoor10, acc.nOut++;
   if (r.brightness != 0xFF) acc.bright += r.brightness, acc.nOn++;
+  if (r.chipC != INT8_MIN) acc.chip += r.chipC, acc.nChip++;
   acc.mode = r.mode;
 }
 
 // One CSV line for `r` (or the header when r is null) into buf; returns its length.
 size_t formatLine(const Row* r, bool human, char* buf, size_t max) {
   if (!r)
-    return snprintf(buf, max, human ? "time,lux,temp_c,humidity,pressure_hpa,outdoor_c,brightness,mode\n"
-                                    : "t,lux,temp_c,humidity,pressure_hpa,outdoor_c,brightness,mode\n");
-  char ts[20], lx[12] = "", tc[10] = "", hu[8] = "", pr[10] = "", od[8] = "", br[4] = "";
+    return snprintf(buf, max, human ? "time,lux,temp_c,humidity,pressure_hpa,outdoor_c,brightness,mode,chip_c\n"
+                                    : "t,lux,temp_c,humidity,pressure_hpa,outdoor_c,brightness,mode,chip_c\n");
+  char ts[20], lx[12] = "", tc[10] = "", hu[8] = "", pr[10] = "", od[8] = "", br[4] = "", ch[6] = "";
   if (human) {
     time_t t = r->time;
     struct tm lt;
@@ -133,8 +190,9 @@ size_t formatLine(const Row* r, bool human, char* buf, size_t max) {
   if (r->pres10 != 0xFFFF) snprintf(pr, sizeof(pr), "%.1f", 500 + r->pres10 / 10.0);
   if (r->outdoor10 != INT16_MIN) snprintf(od, sizeof(od), "%.1f", r->outdoor10 / 10.0);
   if (r->brightness != 0xFF) snprintf(br, sizeof(br), "%u", r->brightness);
-  return snprintf(buf, max, "%s,%s,%s,%s,%s,%s,%s,%s\n", ts, lx, tc, hu, pr, od, br,
-                  MODES[r->mode < 6 ? r->mode : 5]);
+  if (r->chipC != INT8_MIN) snprintf(ch, sizeof(ch), "%d", r->chipC);
+  return snprintf(buf, max, "%s,%s,%s,%s,%s,%s,%s,%s,%s\n", ts, lx, tc, hu, pr, od, br,
+                  MODES[r->mode < 6 ? r->mode : 5], ch);
 }
 
 }  // namespace
@@ -154,6 +212,12 @@ void begin() {
       n = got;
       head = got % ROWS;
       LOG("sensorlog: %u rows loaded", (unsigned)n);
+    } else if (hdr[0] == MAGIC1 && hdr[1] <= ROWS) {  // before 0.9.0: convert as it loads
+      Row1 r1;
+      while (n < hdr[1] && f.read((uint8_t*)&r1, sizeof(Row1)) == sizeof(Row1)) rows[n++] = fromRow1(r1);
+      head = n % ROWS;
+      dirty = true;  // saved in the new form at the next save
+      LOG("sensorlog: %u rows converted", (unsigned)n);
     }
     f.close();
   }

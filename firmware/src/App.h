@@ -58,7 +58,9 @@ class App {
   bool _playlistDirty = false;
   uint32_t _dirtySince = 0;
   uint32_t _lastState = 0, _lastSensors = 0;
-  int8_t _otaShown = -1;  // the upload percentage on the display, -1 none
+  int8_t _otaShown = -1;
+  float _chipC = NAN, _chipMin = NAN, _chipMax = NAN;  // the ESP32's own temperature
+  uint32_t _lastChip = 0;  // the upload percentage on the display, -1 none
   uint32_t _lastCleanup = 0;
   uint32_t _lastBrightnessCheck = 0;
   uint8_t _appliedBase = 255;
@@ -78,6 +80,7 @@ class App {
   void setMode(Mode* m, bool persist);
   void showNotice(const char* text, bool fast = false);
   void drawOta(int8_t percent);
+  void readChip(uint32_t now);
   void updateNotice();
   bool needsSetupNotice() const;
   void markDirty(bool settings, bool playlist);

@@ -46,6 +46,14 @@ struct Settings {
     float luxLow = 0.1f, luxHigh = 40.0f;  // follow each reading at once, no smoothing (for testing; since 0.8.6)
   } autoBrightness;
 
+  // The Wi-Fi radio (since 0.9.0). The C3 Super Mini's antenna is weak and some
+  // boards don't connect at all with a strong transmitter, so 8.5 dBm by default;
+  // a change that loses the Wi-Fi goes back by itself (Network).
+  struct Radio {
+    uint8_t txQ = WIFI_TX_POWER;  // transmit power in 1/4 dBm (34 = 8.5 dBm)
+    bool sleep = false;           // modem sleep between the router's beacons
+  } radio;
+
   struct Night {
     bool enabled = false;
     uint16_t from = 23 * 60;  // minutes after midnight

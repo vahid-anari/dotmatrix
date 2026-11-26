@@ -8,6 +8,9 @@ from core.device import PROTO_VERSION
 
 from . import theme
 from .app import APP_VERSION
+from .brightness import BrightnessPage
+from .display_page import DisplayPage
+from .display_page import subtitle as display_subtitle
 from .place import choose_place, location_changes
 from .widgets import bottom_room, muted, section
 
@@ -31,6 +34,14 @@ TIMEZONES = [
 def tz_label(tz: str) -> str:
     """A friendly name for a POSIX TZ string the display reports, when it's a common one."""
     return dict(TIMEZONES).get(tz, tz)
+
+
+class _Own:
+    """Stands for the Settings tab on a page made of its controls: the page then
+    refreshes with the tab, and closing it doesn't unregister the tab itself."""
+
+    def __init__(self, refresh):
+        self.refresh = refresh
 
 
 class SettingsTab:
@@ -75,27 +86,44 @@ class SettingsTab:
         self.led_color = ft.Row(spacing=14)
         self._draw_swatches()
 
+        # Settings is a short list; each entry opens its own page (0.9.0), with
+        # a line under its name saying how things stand.
+        self.brightness_page = BrightnessPage(app)
+        self.display_page = DisplayPage(app, ft.Row([self.hostname, self.host_btn]), self.wifi_btn, self.reboot_btn)
+        own = _Own(self.refresh)  # pages made of this tab's own controls refresh with it
+        self.pages = {
+            "connection": ("Connection", ft.Icons.WIFI_TETHERING, own, [
+                section("", self.status, ft.Row([self.address, self.connect_btn]),
+                        self.find_btn, self.progress, self.found_list,
+                        note="The phone and the display must be on the same Wi-Fi.")]),
+            "brightness": ("Brightness", ft.Icons.BRIGHTNESS_6, self.brightness_page, self.brightness_page.controls),
+            "display": ("Display", ft.Icons.GRID_ON, self.display_page, self.display_page.controls),
+            "location": ("Location", ft.Icons.PLACE, own, [
+                section("", self.loc_place, self.loc_tz, self.loc_btn,
+                        note="Sets the display's time zone and where its weather comes from.")]),
+            "texts": ("Your texts", ft.Icons.TEXT_SNIPPET, own, [
+                section("",
+                        ft.Row([ft.OutlinedButton("Export", icon=ft.Icons.UPLOAD_FILE, on_click=self._export),
+                                ft.OutlinedButton("Import", icon=ft.Icons.FILE_OPEN, on_click=self._import)],
+                               wrap=True),
+                        note="Save all groups to a file, or add groups from one.")]),
+            "appearance": ("Appearance", ft.Icons.PALETTE, own, [
+                section("", self.theme,
+                        ft.Column([muted("LED colour, like your display", 14), self.led_color], spacing=8),
+                        note="Phone: light or dark, as the phone is set.")]),
+            "updates": ("Updates", ft.Icons.SYSTEM_UPDATE, own, [
+                section("", self.upd_status, self.app_upd, self.fw_upd, self.fw_progress, self.fw_step,
+                        self.upd_check, note="New versions come from this project's releases on GitHub.")]),
+            "about": ("About", ft.Icons.INFO_OUTLINE, own, [section("", self.about)]),
+        }
+        self.subtitles = {k: ft.Text("", size=13, color=ft.Colors.ON_SURFACE_VARIANT) for k in self.pages}
         self.view = ft.Column([
-            section("Connection", self.status, ft.Row([self.address, self.connect_btn]),
-                    self.find_btn, self.progress, self.found_list,
-                    note="The phone and the display must be on the same Wi-Fi."),
-            section("Location", self.loc_place, self.loc_tz, self.loc_btn,
-                    note="Sets the display's time zone and where its weather comes from."),
-            section("Display", ft.Row([self.hostname, self.host_btn]), self.wifi_btn, self.reboot_btn),
-            section("Your texts",
-                    ft.Row([ft.OutlinedButton("Export", icon=ft.Icons.UPLOAD_FILE, on_click=self._export),
-                            ft.OutlinedButton("Import", icon=ft.Icons.FILE_OPEN, on_click=self._import)], wrap=True),
-                    note="Save all groups to a file, or add groups from one."),
-            section("Appearance", self.theme,
-                    ft.Column([muted("LED colour, like your display", 14),
-                               self.led_color], spacing=8),
-                    note="Phone: light or dark, as the phone is set."),
-            section("Updates", self.upd_status, self.app_upd, self.fw_upd, self.fw_progress, self.fw_step,
-                    self.upd_check,
-                    note="New versions come from this project's releases on GitHub."),
-            section("About", self.about),
+            *[ft.ListTile(leading=ft.Icon(icon), title=ft.Text(title, size=16), subtitle=self.subtitles[k],
+                          trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT), on_click=lambda e, k=k: self.open(k),
+                          content_padding=ft.Padding.symmetric(horizontal=4, vertical=0))
+              for k, (title, icon, _, _) in self.pages.items()],
             bottom_room(),
-        ], spacing=22, scroll=ft.ScrollMode.AUTO, expand=True)
+        ], spacing=0, scroll=ft.ScrollMode.AUTO, expand=True)
         self.refresh()
 
     def refresh(self):
@@ -128,6 +156,40 @@ class SettingsTab:
         self.about.controls = [ft.Row([muted(k, 14), ft.Text(v, size=14)],
                                       alignment=ft.MainAxisAlignment.SPACE_BETWEEN) for k, v in rows]
         self._refresh_updates()
+        self.brightness_page.refresh()
+        self.display_page.refresh()
+        self._subtitles()
+
+    def _subtitles(self):
+        d = self.app.device
+        place = d.settings.get("weather", {}).get("place")
+        upd = [w for w, yes in (("app", self.app.app_update), ("display", self.app.firmware_update)) if yes]
+        text = {
+            "connection": (f"Connected · {d.host}" if d.connected else (f"Not connected · {d.host}" if d.host
+                                                                         else "Not set up")),
+            "brightness": BrightnessPage.subtitle(d) if d.connected else "",
+            "display": display_subtitle(d),
+            "location": place or ("Not chosen yet" if d.connected else ""),
+            "texts": "Export or import your groups",
+            "appearance": {"system": "Like the phone", "light": "Light", "dark": "Dark"}.get(
+                self.app.library.prefs.get("theme", "system"), ""),
+            "updates": (f"Version {self.app.latest.version} is available" if upd else
+                        f"App {APP_VERSION}, firmware {d.hello.get('fw', '–')}"),
+            "about": "Dot Matrix by Vahid Anari, MIT licence",
+        }
+        for k, t in self.subtitles.items():
+            t.value = text.get(k, "")
+            t.visible = bool(t.value)
+
+    def open(self, key: str):
+        """Open one of the settings pages (from this list, or from elsewhere: Home → Brightness)."""
+        title, _, screen, controls = self.pages[key]
+        screen.refresh()
+        view = ft.View(route=f"/settings/{key}", appbar=ft.AppBar(title=ft.Text(title)),
+                       controls=[ft.Column([*controls, bottom_room()], spacing=22, scroll=ft.ScrollMode.AUTO,
+                                           expand=True)],
+                       padding=16)
+        self.app.push(view, screen)
 
     def _refresh_updates(self):
         app, latest = self.app, self.app.latest

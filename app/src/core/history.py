@@ -9,7 +9,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-COLUMNS = ("lux", "temp_c", "humidity", "pressure_hpa", "outdoor_c", "brightness")
+COLUMNS = ("lux", "temp_c", "humidity", "pressure_hpa", "outdoor_c", "brightness", "chip_c")  # chip_c: 0.9.0
 
 
 def parse(text: str) -> list[dict]:
@@ -227,6 +227,9 @@ def describe(e: dict) -> tuple[str, bool]:
         if e.get("rssi", 0) < 0:  # firmware 0.8.3: the signal just before
             why += f" (signal was {e['rssi']} dBm)".replace("-", "−")
         return f"Wi-Fi lost for {duration(e['seconds'])} · {why}", False
+    if e["kind"] == "radio":  # firmware 0.9.0: a Wi-Fi power/sleep change lost the Wi-Fi
+        return (f"Wi-Fi setting undone: no connection with it, back to {e['reason'] / 4:g} dBm"
+                f"{', dozing' if e['seconds'] else ''}"), True
     return f"Restarted · {RESTARTS.get(e['reason'], 'unknown reason')}", e["reason"] in UNUSUAL_RESTARTS
 
 

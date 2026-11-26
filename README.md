@@ -69,13 +69,16 @@ the room's temperature, humidity, air pressure and light, with charts of them an
 the brightness over a day, a week, a month or everything the phone has kept, and the
 last two days of readings, one a minute, as a CSV file. Clock sets 12- or 24-hour time; whether the
 date, the weather and the room's temperature come by, one after the other, how often,
-and whether they drop in from the top or scroll across; °C or °F; and the hours of
-night dimming. Tools runs the stopwatch and the timer on the display: they keep going
-when the phone is put away, and the timer takes over the display and blinks when it
-reaches zero. Settings has the connection; the display's location, chosen once by
-name, which sets both its time zone and where the weather comes from; its name; the
-app's look (light, dark or as the phone is set, and the LED colour of your display),
-export and import of your texts, and updates.
+and whether they drop in from the top or scroll across; and °C or °F. Tools runs the
+stopwatch and the timer on the display: they keep going when the phone is put away, and
+the timer takes over the display and blinks when it reaches zero. Settings is a list of
+pages: the connection; brightness (how the automatic brightness follows the light, and
+the hours of night dimming); the display itself (its Wi-Fi signal, its chip's
+temperature, memory and storage, its Wi-Fi transmit power, its name, moving it to
+another Wi-Fi, restarting it); its location, chosen once by name, which sets both its
+time zone and where the weather comes from; export and import of your texts; the app's
+look (light, dark or as the phone is set, and the LED colour of your display); and
+updates.
 
 Without the app, [`tools/dm.py`](tools/dm.py) does the same from a terminal, for
 example `python tools/dm.py say "Hello"` or `python tools/dm.py watch`.
