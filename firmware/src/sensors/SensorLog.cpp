@@ -263,15 +263,35 @@ std::shared_ptr<Cursor> csv(bool quarters, bool human, uint32_t since) {
 // Rows are read as they're sent (2880 rows are ~150 KB of CSV, too much to
 // build at once). If a row is added during the download, one row may come
 // twice or be missed; the app keeps rows by time, so that does no harm.
+// The first row after `since`, by halving (rows are in time order): the app asks
+// only for what's new, and reading row after row from flash to find it was slow.
+static long firstAfter(bool quarters, uint32_t since) {
+  long lo = 0, hi = quarters ? qCount : n;
+  while (lo < hi) {
+    long mid = (lo + hi) / 2;
+    Row r;
+    bool ok = quarters ? qRead(mid, r) : (r = at(mid), true);
+    if (ok && r.time <= since)
+      lo = mid + 1;
+    else
+      hi = mid;
+  }
+  return lo;
+}
+
 size_t Cursor::next(uint8_t* buf, size_t max) {
   if (!rows) return 0;
+  constexpr int ROWS_A_CALL = 20;
   size_t out = 0;
+  int made = 0;
   while (out < max) {
     if (sent >= len) {  // make the next line
+      if (made >= ROWS_A_CALL) break;  // the rest at the next call
       size_t total = quarters ? qCount : n;
       if (row < 0) {
         len = formatLine(nullptr, human, text, sizeof(text));
       } else {
+        if (row == 0 && since) row = firstAfter(quarters, since);
         Row r;
         bool have = false;
         while (row < (long)total) {
@@ -285,6 +305,7 @@ size_t Cursor::next(uint8_t* buf, size_t max) {
         }
         if (!have) break;
         len = formatLine(&r, human, text, sizeof(text));
+        made++;
       }
       row++;
       sent = 0;

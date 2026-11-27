@@ -64,8 +64,8 @@ class DisplayPage:
             ft.Column([muted("Transmit power (dBm)", 14), ft.Row([self.tx], scroll=ft.ScrollMode.AUTO)], spacing=6),
             self.sleep,
             note="Stronger reaches further and warms the chip a little; some of these boards don't "
-                 "connect at all when it's strong. Dozing saves a little power but made this display "
-                 "drop off the Wi-Fi now and then. If a change loses the Wi-Fi for a minute, the "
+                 "connect at all when it's strong. Dozing keeps the chip much cooler; while it dozes "
+                 "the display waits 20 s for the router before it counts the Wi-Fi as lost. If a change loses the Wi-Fi for a minute, the "
                  "display goes back to what worked and notes it under History → Events.")
         self.controls = [
             section("Now", self.facts,

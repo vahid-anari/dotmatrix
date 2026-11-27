@@ -6,6 +6,7 @@
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <WiFi.h>
+#include <esp_wifi.h>
 #include <esp_mac.h>
 #include <esp_sntp.h>
 #include <esp_task_wdt.h>
@@ -219,7 +220,13 @@ int Network::rssi() const { return _state == State::Online ? WiFi.RSSI() : 0; }
 
 void Network::setRadio() {
   WiFi.setTxPower((wifi_power_t)_txQ);
-  WiFi.setSleep(_apActive ? false : _sleep);
+  bool doze = _apActive ? false : _sleep;
+  WiFi.setSleep(doze);
+  // The router's signals ("beacons") the radio may miss before it calls the
+  // Wi-Fi lost: 6 s by default. Dozing sometimes misses several in a row, and
+  // that ended the connection (reason 200) though the router was right there;
+  // so 20 s while dozing (0.9.1), the default when awake.
+  esp_wifi_set_inactive_time(WIFI_IF_STA, doze ? WIFI_DOZE_BEACON_TIMEOUT_S : 6);
 }
 
 void Network::applyRadio(uint8_t txQ, bool sleep) {

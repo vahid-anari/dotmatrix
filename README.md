@@ -66,7 +66,7 @@ shows what the display is doing, switches between texts, clock and off, sets the
 brightness, or lets the light sensor set it (between a level for a dark room and one
 for the lights on), and sends a quick message; with the sensors fitted it also shows
 the room's temperature, humidity, air pressure and light, with charts of them and of
-the brightness over a day, a week, a month or everything the phone has kept, and the
+the brightness over anything from the last ten minutes to everything the phone has kept, and the
 last two days of readings, one a minute, as a CSV file. Clock sets 12- or 24-hour time; whether the
 date, the weather and the room's temperature come by, one after the other, how often,
 and whether they drop in from the top or scroll across; and °C or °F. Tools runs the

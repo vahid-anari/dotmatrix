@@ -4,6 +4,21 @@ Released with tags `vX.Y.Z`; each release carries the signed APK and the firmwar
 which the app offers as updates. The version is the app's; the firmware takes the
 same number when it changes too.
 
+## 0.9.1 — 2026-11-27
+
+- The clock no longer stands still while History fetches from the display: the
+  phone keeps the minutes too and asks only for what's new; the display sends its
+  log a few rows at a time and finds the first new row at once; and its web
+  server no longer outranks the loop that draws the clock.
+- History follows the rows as they come in, with a count while it fetches.
+- History has a slider instead of Day/Week/Month/All: the last 10 minutes,
+  30 minutes, 1, 3, 6 or 12 hours, 1 or 3 days, 1 or 2 weeks, a month, or
+  everything; up to two days with a point a minute, with time labels to match.
+- While the Wi-Fi radio dozes (Settings → Display), the display waits 20 s
+  without the router's signals before it counts the Wi-Fi as lost, instead of 6.
+  Dozing keeps the chip far cooler (about 50 °C instead of 74), but a dozing radio
+  sometimes misses several signals in a row, and those short drops came back.
+
 ## 0.9.0 — 2026-11-26
 
 - Settings is a short list now; each entry opens its own page, with a line under

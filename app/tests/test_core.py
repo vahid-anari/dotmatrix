@@ -493,3 +493,18 @@ def test_radio_event_and_device_rows():
     assert rows["Chip temperature"] == "47 °C (since the start 41–50)"
     assert rows["Storage"] == "116 KB of 192 KB used"
     assert subtitle(D()) == "dotmatrix.local · chip 47 °C · 150 KB free"
+
+
+def test_short_span_ticks_and_minute_archive(tmp_path):
+    from core import history as h
+    end = 1_800_000_000.0
+    t = h.ticks(end - 600, end)  # 10 minutes: every 2 minutes
+    assert 3 <= len(t) <= 6 and all((b[0] - a[0]) == 120 for a, b in zip(t, t[1:]))
+    t = h.ticks(end - 3 * 3600, end)  # 3 hours: every 30 minutes
+    assert all((b[0] - a[0]) == 1800 for a, b in zip(t, t[1:]))
+    a = h.Archive(tmp_path / "m.csv", keep=3600)
+    a.merge([{"t": 1000 + 60 * i, "mode": "clock", "lux": 1.0} for i in range(200)])
+    assert a.rows[0]["t"] == a.last - 3600 and len(a.rows) == 61
+    a.save()
+    assert h.Archive(tmp_path / "m.csv", keep=3600).last == a.last
+    assert h.RANGES[0] == (600, "10 minutes") and h.RANGES[-1][0] == 0

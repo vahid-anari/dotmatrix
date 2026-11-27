@@ -40,10 +40,12 @@ def to_csv(rows: list[dict]) -> str:
 
 
 class Archive:
-    """The quarter hours kept on the phone, oldest first, one per time."""
+    """Rows kept on the phone, oldest first, one per time: the quarter hours with
+    no end, or (keep = seconds) the minutes of the last few days (0.9.1)."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, keep: int = 0):
         self.path = path
+        self.keep = keep
         self.rows: list[dict] = []
         try:
             self.rows = parse(path.read_text())
@@ -60,6 +62,9 @@ class Archive:
         new = sum(1 for r in rows if r["t"] not in by_t)
         by_t.update({r["t"]: r for r in rows})
         self.rows = [by_t[t] for t in sorted(by_t)]
+        if self.keep and self.rows:
+            edge = self.rows[-1]["t"] - self.keep
+            self.rows = [r for r in self.rows if r["t"] >= edge]
         return new
 
     def save(self):
@@ -69,14 +74,26 @@ class Archive:
         tmp.replace(self.path)
 
 
-async def fetch(host: str, res: int, since: int = 0, timeout: float = 60) -> list[dict]:
-    """The display's rows after `since`: res 1 = minutes (two days), 15 = quarters (30 days)."""
+async def fetch(host: str, res: int, since: int = 0, timeout: float = 60, progress=None) -> list[dict]:
+    """The display's rows after `since`: res 1 = minutes (two days), 15 = quarters (30 days).
+    `progress(rows)` is called with the rows so far about twice a second while they come in."""
     url = f"http://{host}/api/log?res={res}&since={since}"
+    lines: list[str] = []
 
     def get():
         with urllib.request.urlopen(url, timeout=timeout) as r:
-            return r.read().decode("utf-8", "replace")
-    return parse(await asyncio.to_thread(get))
+            for line in r:
+                lines.append(line.decode("utf-8", "replace"))
+
+    task = asyncio.ensure_future(asyncio.to_thread(get))
+    shown = 0
+    while not task.done():
+        await asyncio.wait([task], timeout=0.5)
+        if progress and not task.done() and len(lines) > max(shown, 1):
+            shown = len(lines)
+            progress(parse("".join(lines[:shown])))
+    task.result()  # raises what the fetch raised
+    return parse("".join(lines))
 
 
 def window(rows: list[dict], start: float, end: float) -> list[dict]:
@@ -122,10 +139,20 @@ def light_y(lux: float) -> float:
     return math.log10(1 + max(0.0, lux))
 
 
+# The spans the History slider offers, shortest first (0.9.1); 0 = everything kept.
+RANGES = ((600, "10 minutes"), (1800, "30 minutes"), (3600, "1 hour"), (3 * 3600, "3 hours"),
+          (6 * 3600, "6 hours"), (12 * 3600, "12 hours"), (86400, "1 day"), (3 * 86400, "3 days"),
+          (7 * 86400, "1 week"), (14 * 86400, "2 weeks"), (30 * 86400, "1 month"), (0, "everything"))
+
+
 def ticks(start: float, end: float) -> list[tuple[float, str]]:
-    """Time labels for the axis: hours for a day, days for longer."""
+    """Time labels for the axis: minutes or hours up to two days, days for longer."""
     span = end - start
     lt = time.localtime(start)
+    if span <= 12 * 3600:  # a round step giving at most about six labels
+        step = next(s for s in (60, 120, 300, 600, 900, 1800, 3600, 7200, 10800) if span / s <= 6)
+        first = (start // step + 1) * step  # whole minutes/hours (time zones are whole quarter hours)
+        return [(t, time.strftime("%H:%M", time.localtime(t))) for t in _steps(first, end, step)]
     if span <= 2 * 86400:
         step_h = 6
         first = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, (lt.tm_hour // step_h + 1) * step_h, 0, 0, 0, 0, -1))

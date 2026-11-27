@@ -45,6 +45,8 @@ struct Cursor {
   long row = -1;          // next row (-1 = the header line)
   char text[128];         // the line being sent, and how much of it is out
   size_t len = 0, sent = 0;
+  // Fills buf with the next lines, at most a few rows a call (0.9.1) so the main
+  // loop gets its turn between pieces and the clock keeps moving. 0 = the end.
   size_t next(uint8_t* buf, size_t max);
 };
 std::shared_ptr<Cursor> csv(bool quarters, bool human, uint32_t since);

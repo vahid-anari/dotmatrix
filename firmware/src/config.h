@@ -4,7 +4,7 @@
 // ---- Version -------------------------------------------------------------
 // Release builds set this from the git tag (see .github/workflows/build.yml).
 #ifndef FW_VERSION
-#define FW_VERSION "0.9.0-dev"
+#define FW_VERSION "0.9.1-dev"
 #endif
 #define PROTO_VERSION 1
 
@@ -33,6 +33,9 @@ constexpr uint8_t MAX_WS_CLIENTS = 4;
 #define DEFAULT_TIMEZONE "EST5EDT,M3.2.0,M11.1.0"  // America/Toronto
 constexpr uint32_t WIFI_CONNECT_TIMEOUT_MS = 20000;
 constexpr uint32_t WIFI_RECONNECT_MS = 3UL * 60 * 1000;  // after losing it while running, before the setup network
+// While the Wi-Fi radio dozes: how long without the router's signals before the
+// Wi-Fi counts as lost (the default is 6 s, too short for a dozing radio).
+constexpr uint16_t WIFI_DOZE_BEACON_TIMEOUT_S = 20;
 constexpr uint32_t NTP_SYNC_INTERVAL_MS = 3600UL * 1000;  // hourly
 constexpr int8_t WIFI_TX_POWER = 34;  // ×0.25 dBm → 8.5 dBm (C3 Super Mini antenna)
 
